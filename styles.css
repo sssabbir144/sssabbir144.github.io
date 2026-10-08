@@ -800,3 +800,28 @@ a.contact-btn:hover {
   * { transition: none !important; animation: none !important; }
   #rotator.fade { opacity: 1; }
 }
+
+/* ---------- Animated gradient glow behind bold text ---------- */
+strong {
+  position: relative;
+  z-index: 0;
+}
+strong::before {
+  content: "";
+  position: absolute;
+  inset: -0.1em -0.3em;
+  background: linear-gradient(135deg, rgba(59,130,246,.45), rgba(139,92,246,.45));
+  border-radius: 0.4em;
+  filter: blur(1px);
+  z-index: -1;
+  opacity: 0;
+  animation: boldGlow 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.about-text strong::before { animation-delay: 1.8s; }
+@keyframes boldGlow {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  55% { opacity: 1; }
+  85%, 100% { opacity: 0; }
+}
