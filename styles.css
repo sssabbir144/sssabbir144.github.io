@@ -280,8 +280,35 @@ h2 {
   box-shadow: var(--shadow-md);
 }
 .service-icon {
-  font-size: 2rem;
-  margin-bottom: 0.9rem;
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+.service-icon svg {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+.accent-text {
+  color: var(--accent);
+}
+.about-text strong {
+  color: var(--accent-dark);
+}
+.contact-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+.contact-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 .service-card h3 {
   font-family: var(--font-display);
