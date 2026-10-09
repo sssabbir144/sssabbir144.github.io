@@ -334,7 +334,7 @@ body.loaded [data-hero] {
 .giant-wrap { overflow: hidden; line-height: .78; }
 .giant-word {
   font-size: clamp(6rem, 23vw, 23rem); font-weight: 800;
-  letter-spacing: -0.05em; text-align: center; margin: 0 0 -0.14em;
+  letter-spacing: -0.05em; text-align: center; margin: 0 0 .12em;
   user-select: none;
 }
 
