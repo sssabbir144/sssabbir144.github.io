@@ -280,3 +280,10 @@ a { color: inherit; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* ---------- Footer social icons ---------- */
+.footer-social { display: flex; justify-content: center; gap: 1.6rem; padding: 2.2rem 0 0.4rem; }
+.soc { display: inline-flex; width: 26px; height: 26px; opacity: .75; transition: opacity .3s, transform .3s; }
+.soc svg { width: 100%; height: 100%; }
+a.soc:hover { opacity: 1; transform: translateY(-2px); }
+span.soc { cursor: default; }
