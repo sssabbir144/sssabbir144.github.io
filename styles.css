@@ -165,9 +165,12 @@ a { color: inherit; }
 }
 .profile-row { display: flex; gap: 1.2rem; align-items: flex-start; }
 .profile-photo {
-  width: 38%; max-width: 260px; flex: none;
+  width: 112px; flex: none;
   aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px;
   border: 1px solid var(--line);
+}
+@media (min-width: 901px) {
+  .profile-photo { width: 180px; }
 }
 .profile-bio { color: var(--muted); font-size: .98rem; padding-top: .2rem; }
 .stats-row {
