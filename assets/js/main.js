@@ -28,22 +28,37 @@
   /* Mobile hamburger */
   var toggle = document.getElementById("navToggle");
   var links = document.getElementById("navLinks");
+  function closeMenu() {
+    nav.classList.remove("open");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Open menu");
+  }
   toggle.addEventListener("click", function () {
     var open = nav.classList.toggle("open");
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
     toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    if (open) { closeSearch(); }
   });
   links.addEventListener("click", function (e) {
-    if (e.target.tagName === "A") {
-      nav.classList.remove("open");
-      toggle.setAttribute("aria-expanded", "false");
-      toggle.setAttribute("aria-label", "Open menu");
-    }
+    if (e.target.tagName === "A") { closeMenu(); }
   });
 
-  /* Filmography filter pills */
+  /* Filmography filters: category pills + title search (combined) */
   var pills = Array.prototype.slice.call(document.querySelectorAll(".pill"));
   var cards = Array.prototype.slice.call(document.querySelectorAll(".credit-card"));
+  var activeFilter = "all";
+  var searchQuery = "";
+
+  function applyCardFilters() {
+    cards.forEach(function (card) {
+      var okPill = activeFilter === "all" || card.getAttribute("data-cat") === activeFilter;
+      var titleEl = card.querySelector(".credit-title");
+      var title = titleEl ? titleEl.textContent.toLowerCase() : "";
+      var okSearch = !searchQuery || title.indexOf(searchQuery) !== -1;
+      card.classList.toggle("hidden", !(okPill && okSearch));
+    });
+  }
+
   pills.forEach(function (pill) {
     pill.addEventListener("click", function () {
       pills.forEach(function (p) {
@@ -52,12 +67,92 @@
       });
       pill.classList.add("active");
       pill.setAttribute("aria-pressed", "true");
-      var f = pill.getAttribute("data-filter");
-      cards.forEach(function (card) {
-        var show = f === "all" || card.getAttribute("data-cat") === f;
-        card.classList.toggle("hidden", !show);
-      });
+      activeFilter = pill.getAttribute("data-filter");
+      applyCardFilters();
     });
+  });
+
+  /* Search toggle + input */
+  var searchToggle = document.getElementById("searchToggle");
+  var searchBar = document.getElementById("searchBar");
+  var filmSearch = document.getElementById("filmSearch");
+  var searchClear = document.getElementById("searchClear");
+
+  function clearSearch() {
+    filmSearch.value = "";
+    searchQuery = "";
+    applyCardFilters();
+  }
+  function closeSearch() {
+    if (!searchBar.hidden) {
+      searchBar.hidden = true;
+      searchToggle.setAttribute("aria-expanded", "false");
+      clearSearch();
+    }
+  }
+
+  searchToggle.addEventListener("click", function () {
+    var opening = searchBar.hidden;
+    closeMenu();
+    searchBar.hidden = !opening;
+    searchToggle.setAttribute("aria-expanded", String(opening));
+    if (opening) { filmSearch.focus(); }
+    else { clearSearch(); }
+  });
+  searchClear.addEventListener("click", function () {
+    clearSearch();
+    filmSearch.focus();
+  });
+  filmSearch.addEventListener("input", function () {
+    searchQuery = filmSearch.value.trim().toLowerCase();
+    applyCardFilters();
+  });
+  filmSearch.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { clearSearch(); }
+    else if (e.key === "Escape") { closeSearch(); searchToggle.focus(); }
+  });
+
+  /* Share: native share sheet, else copy link + toast */
+  var shareBtn = document.getElementById("shareBtn");
+  var toast = document.getElementById("toast");
+  var toastTimer = null;
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    window.requestAnimationFrame(function () { toast.classList.add("show"); });
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toast.classList.remove("show");
+      setTimeout(function () { toast.hidden = true; }, 350);
+    }, 2200);
+  }
+
+  function copyLink(done) {
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = location.href;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "absolute";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch (err) { /* noop */ }
+      document.body.removeChild(ta);
+      done();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(location.href).then(done, fallback);
+    } else { fallback(); }
+  }
+
+  shareBtn.addEventListener("click", function () {
+    var data = { title: document.title, url: location.href };
+    if (navigator.share) {
+      navigator.share(data).catch(function () { /* user dismissed */ });
+    } else {
+      copyLink(function () { showToast("Link copied!"); });
+    }
   });
 
   if (reduced) {
