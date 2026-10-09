@@ -91,8 +91,9 @@ a { color: inherit; }
   position: absolute; left: 8px; right: 8px; height: 2px; background: var(--text);
   transition: transform .3s;
 }
-.nav-toggle span:first-child { top: 15px; }
-.nav-toggle span:last-child { bottom: 15px; }
+.nav-toggle span:first-child { top: 12px; }
+.nav-toggle span:nth-child(2) { top: 19px; }
+.nav-toggle span:last-child { top: 26px; }
 /* Search bar (toggles under navbar) */
 .search-bar { border-top: 1px solid var(--line); background: #141414; }
 .search-bar[hidden] { display: none; }
