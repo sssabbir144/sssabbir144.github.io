@@ -1,14 +1,13 @@
-/* Sabbir Hossin — portfolio interactions (vanilla JS, no dependencies) */
+/* Sabbir Hossin — filmography portfolio interactions (vanilla JS, no dependencies) */
 (function () {
   "use strict";
 
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* Hero fade-in on load */
+  /* Body loaded flag */
   function markLoaded() { document.body.classList.add("loaded"); }
   if (document.readyState === "complete") { markLoaded(); }
   else { window.addEventListener("load", markLoaded); }
-  /* Fallback in case load event is delayed */
   setTimeout(markLoaded, 2500);
 
   /* Navbar: hide on scroll down, show on scroll up */
@@ -42,9 +41,34 @@
     }
   });
 
-  if (reduced) { return; }
+  /* Filmography filter pills */
+  var pills = Array.prototype.slice.call(document.querySelectorAll(".pill"));
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".credit-card"));
+  pills.forEach(function (pill) {
+    pill.addEventListener("click", function () {
+      pills.forEach(function (p) {
+        p.classList.remove("active");
+        p.setAttribute("aria-pressed", "false");
+      });
+      pill.classList.add("active");
+      pill.setAttribute("aria-pressed", "true");
+      var f = pill.getAttribute("data-filter");
+      cards.forEach(function (card) {
+        var show = f === "all" || card.getAttribute("data-cat") === f;
+        card.classList.toggle("hidden", !show);
+      });
+    });
+  });
 
-  /* Scroll reveals: curtain wipes, highlighter draw-ins */
+  if (reduced) {
+    /* No motion: reveal everything immediately */
+    document.querySelectorAll(".reveal").forEach(function (el) {
+      el.classList.add("in");
+    });
+    return;
+  }
+
+  /* Scroll reveals */
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       if (entry.isIntersecting) {
@@ -52,48 +76,9 @@
         io.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.2, rootMargin: "0px 0px -6% 0px" });
+  }, { threshold: 0.12, rootMargin: "0px 0px -5% 0px" });
 
-  document.querySelectorAll(".wipe, .work-media, .hl[data-hl]").forEach(function (el) {
+  document.querySelectorAll(".reveal").forEach(function (el) {
     io.observe(el);
   });
-
-  /* Services accordion */
-  var items = Array.prototype.slice.call(document.querySelectorAll(".acc-item"));
-  items.forEach(function (item) {
-    var head = item.querySelector(".acc-head");
-    head.addEventListener("click", function () {
-      var wasOpen = item.classList.contains("active");
-      items.forEach(function (o) {
-        o.classList.remove("active");
-        o.querySelector(".acc-head").setAttribute("aria-expanded", "false");
-      });
-      if (!wasOpen) {
-        item.classList.add("active");
-        head.setAttribute("aria-expanded", "true");
-      }
-    });
-  });
-  if (items[0]) {
-    items[0].classList.add("active");
-    items[0].querySelector(".acc-head").setAttribute("aria-expanded", "true");
-  }
-
-  /* Process cards: click (or Enter/Space) to activate */
-  var pcards = Array.prototype.slice.call(document.querySelectorAll(".pcard"));
-  function activate(card) {
-    pcards.forEach(function (c) {
-      c.classList.remove("active");
-      c.setAttribute("aria-pressed", "false");
-    });
-    card.classList.add("active");
-    card.setAttribute("aria-pressed", "true");
-  }
-  pcards.forEach(function (card) {
-    card.addEventListener("click", function () { activate(card); });
-    card.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(card); }
-    });
-  });
-  if (pcards[0]) { activate(pcards[0]); }
 })();
