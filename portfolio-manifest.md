@@ -55,5 +55,5 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 8. **The Mouse and the Grasshopper — 2D Animated Short Film**
    - video: ~/workspace/portfolio/mouse-grasshopper/the-mouse-and-the-grasshopper-2d-animated-short-film.mp4 (60s, 1920×1080)
    - thumbnail: assets/mouse-grasshopper.jpg (960×540 optimized)
-   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - youtube: https://youtu.be/zuQM2tuKG7c (direct video link added 2026-10-10 ~19:00 +06 — NEW badge removed)
    - tags: 2D Animation, Friendship, Short Film
