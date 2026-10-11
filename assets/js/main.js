@@ -103,6 +103,42 @@
     clearSearch();
     filmSearch.focus();
   });
+  /* All topics dropdown (IMDb-style) */
+  var topicsToggle = document.getElementById("topicsToggle");
+  var topicsPanel = document.getElementById("topicsPanel");
+  function closeTopics() {
+    if (topicsPanel && !topicsPanel.hidden) {
+      topicsPanel.hidden = true;
+      topicsToggle.setAttribute("aria-expanded", "false");
+    }
+  }
+  if (topicsToggle && topicsPanel) {
+    topicsToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var opening = topicsPanel.hidden;
+      closeMenu();
+      closeSearch();
+      topicsPanel.hidden = !opening;
+      topicsToggle.setAttribute("aria-expanded", String(opening));
+    });
+    topicsPanel.addEventListener("click", function (e) { e.stopPropagation(); });
+    document.addEventListener("click", closeTopics);
+    topicsPanel.querySelectorAll("[data-topic]").forEach(function (link) {
+      link.addEventListener("click", function () {
+        var filter = link.getAttribute("data-filter");
+        if (filter) {
+          pills.forEach(function (p) {
+            var on = p.getAttribute("data-filter") === filter;
+            p.classList.toggle("active", on);
+            p.setAttribute("aria-pressed", String(on));
+          });
+          activeFilter = filter;
+          applyCardFilters();
+        }
+        closeTopics();
+      });
+    });
+  }
   filmSearch.addEventListener("input", function () {
     searchQuery = filmSearch.value.trim().toLowerCase();
     applyCardFilters();

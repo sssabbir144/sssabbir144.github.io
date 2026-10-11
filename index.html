@@ -94,6 +94,10 @@
         <a href="#contact">Contact</a>
       </nav>
       <div class="nav-icons">
+        <button class="topics-btn" id="topicsToggle" aria-label="All topics" aria-expanded="false" aria-controls="topicsPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>All topics</span>
+        </button>
         <button class="icon-btn" id="searchToggle" aria-label="Search films" aria-expanded="false" aria-controls="searchBar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
         </button>
@@ -108,6 +112,18 @@
         <button class="icon-btn" id="searchClear" aria-label="Clear search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
+      </div>
+    </div>
+    <div class="topics-panel" id="topicsPanel" hidden>
+      <div class="topics-inner">
+        <a href="#work" data-topic>Popular</a>
+        <a href="#filmography" data-topic>Videos</a>
+        <a href="#filmography" data-topic data-filter="2d">2D Animation</a>
+        <a href="#filmography" data-topic data-filter="3d">3D Animation</a>
+        <a href="#about" data-topic>Biography</a>
+        <a href="#photos" data-topic>Photos</a>
+        <a href="#services" data-topic>Services</a>
+        <a href="#contact" data-topic>Contact</a>
       </div>
     </div>
   </header>
