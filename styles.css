@@ -311,6 +311,9 @@ a { color: inherit; }
   .credit-media { max-width: 420px; }
   .credit-watch { justify-self: start; }
   .services-grid { grid-template-columns: 1fr; }
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .contact-grid .btn { width: 100%; justify-content: center; }
+  .contact-grid .btn-static { grid-column: 1 / -1; }
 }
 
 @media (min-width: 901px) {
