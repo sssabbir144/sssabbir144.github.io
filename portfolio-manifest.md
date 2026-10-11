@@ -2,6 +2,14 @@
 
 Projects already published on the GitHub Pages portfolio site. The daily 7 PM check compares new findings against this list (dedupe by title).
 
+## 2026-10-12 — Chick and the Birthday Cake (weekly video #1)
+
+1. **Chick and the Birthday Cake — 3D Animated Short Film**
+   - video: ~/workspace/portfolio/chick-birthday-cake/chick-and-the-birthday-cake-3d-animated-short-film.mp4
+   - thumbnail: assets/chick-birthday-cake.jpg
+   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - tags: 3D Animation, Comedy, Short Film
+
 ## 2026-10-09 — initial launch (7 projects)
 
 1. **Midnight Passenger — 3D Animated Horror Short Film**
