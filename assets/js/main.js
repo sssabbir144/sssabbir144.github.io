@@ -212,4 +212,11 @@
   document.querySelectorAll(".reveal").forEach(function (el) {
     io.observe(el);
   });
+
+  /* Auto-count animations for the stats */
+  var animCount = document.getElementById("animCount");
+  var creditCards = document.querySelectorAll(".credit-card");
+  if (animCount && creditCards.length) {
+    animCount.textContent = creditCards.length + "+";
+  }
 })();
