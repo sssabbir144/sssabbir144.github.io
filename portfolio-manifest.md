@@ -13,7 +13,7 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 2. **The Crystal Guardian — 3D Animated Short Film**
    - video: ~/workspace/portfolio/crystal-guardian/the-crystal-guardian-3d-animated-short-film.mp4
    - thumbnail: assets/crystal-guardian.jpg
-   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - youtube: https://youtu.be/ut9wcXGG3Gc
    - tags: 3D Animation, Friendship Story, Short Film
 
 3. **Brave Blue Bird — 2D Animated Cartoon Short Film**
