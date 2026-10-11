@@ -317,7 +317,7 @@ a { color: inherit; }
   .contact-grid .btn-static { grid-column: 1 / -1; }
   #contact { padding-bottom: 1rem; }
   .footer { margin-top: 0; padding: 1.2rem 0 2.6rem; }
-  .footer-social { padding: .8rem 0 3rem; gap: 1.5rem; }
+  .footer-social { padding: .8rem 0 3.5rem; gap: 1.5rem; }
   .soc { width: 36px; height: 36px; opacity: 1; }
 }
 
