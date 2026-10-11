@@ -90,8 +90,4 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
     - youtube: pending (links to Pure Cartoon channel + NEW badge)
     - tags: 2D Animation, Heartwarming
 
-14. **The Wobbly Chair — 2D B&W Comedy Short**
-    - video: ~/workspace/animation/office-bribe/the-wobbly-chair-film-v2.mp4 (60s, vertical B&W)
-    - thumbnail: assets/wobbly-chair.jpg (960×540, blurred-fill from vertical)
-    - youtube: pending (links to Pure Cartoon channel + NEW badge)
-    - tags: 2D Animation, B&W Comedy
+14. **The Wobbly Chair — 2D B&W Comedy Short** — ❌ REMOVED 2026-10-11 (user's direct order: quality not good enough, does not want to keep it). Deleted from site (card, thumbnail, JSON-LD, Photos). NEVER re-publish. NO account may upload this video; if already uploaded anywhere, delete immediately.
