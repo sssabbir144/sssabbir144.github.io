@@ -295,6 +295,7 @@ a { color: inherit; }
 
 /* ---------- Footer ---------- */
 .footer { border-top: 1px solid var(--line); padding: 2rem 0 2.6rem; margin-top: 2rem; }
+.footer-inner { text-align: center; }
 .footer-inner p { color: var(--muted); font-size: .88rem; }
 
 /* ---------- Responsive ---------- */
