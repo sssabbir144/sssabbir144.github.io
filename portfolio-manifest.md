@@ -7,7 +7,7 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 1. **The Deal of a Lifetime — B&W Stick Figure Comedy Short**
    - video: ~/workspace/portfolio/deal-of-a-lifetime/the-deal-of-a-lifetime-bw-stick-figure-comedy-short.mp4
    - thumbnail: assets/deal-of-a-lifetime.jpg
-   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - youtube: https://youtu.be/jL6ffIthjq0 (direct video link — NEW badge kept)
    - tags: Stick Figure, Comedy, Short Film
 
 ## 2026-10-12 — Chick and the Birthday Cake (weekly video #1)
