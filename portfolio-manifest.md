@@ -2,6 +2,14 @@
 
 Projects already published on the GitHub Pages portfolio site. The daily 7 PM check compares new findings against this list (dedupe by title).
 
+## 2026-10-13 — The Deal of a Lifetime (off-schedule 8 PM upload, user's pick)
+
+1. **The Deal of a Lifetime — B&W Stick Figure Comedy Short**
+   - video: ~/workspace/portfolio/deal-of-a-lifetime/the-deal-of-a-lifetime-bw-stick-figure-comedy-short.mp4
+   - thumbnail: assets/deal-of-a-lifetime.jpg
+   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - tags: Stick Figure, Comedy, Short Film
+
 ## 2026-10-12 — Chick and the Birthday Cake (weekly video #1)
 
 1. **Chick and the Birthday Cake — 3D Animated Short Film**
@@ -99,3 +107,11 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
     - tags: 2D Animation, Heartwarming
 
 14. **The Wobbly Chair — 2D B&W Comedy Short** — ❌ REMOVED 2026-10-11 (user's direct order: quality not good enough, does not want to keep it). Deleted from site (card, thumbnail, JSON-LD, Photos). NEVER re-publish. NO account may upload this video; if already uploaded anywhere, delete immediately.
+
+### 2026-10-12 — Bunny's Cake Caper (8 PM publisher)
+
+15. **Bunny's Cake Caper — 3D Comedy Short**
+   - video: ~/workspace/portfolio/bunny-cake-caper/bunny-s-cake-caper-3d-comedy-short.mp4 (58s)
+   - thumbnail: assets/bunny-cake-caper.jpg (960×540)
+   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - tags: 3D Animation, Comedy, Short Film
