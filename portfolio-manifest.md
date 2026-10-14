@@ -2,6 +2,14 @@
 
 Projects already published on the GitHub Pages portfolio site. The daily 7 PM check compares new findings against this list (dedupe by title).
 
+## 2026-10-14 — Mosquito Friend! (Wed 8 PM scheduled slot, user's pick: "শিডিউলের জন্য রাখবো")
+
+1. **Mosquito Friend! — 3D Animated Short Film**
+   - video: ~/workspace/portfolio/mosquito-friend/mosquito-friend-3d-animated-short-film.mp4 (30s, 1920×1080)
+   - thumbnail: assets/mosquito-friend.jpg (960×540)
+   - youtube: https://www.youtube.com/@purecartoonofficial (direct video link pending — NEW badge)
+   - tags: 3D Animation, Bedtime Story, Short Film
+
 ## 2026-10-13 — The Deal of a Lifetime (off-schedule 8 PM upload, user's pick)
 
 1. **The Deal of a Lifetime — B&W Stick Figure Comedy Short**
