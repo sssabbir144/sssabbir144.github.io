@@ -2,6 +2,14 @@
 
 Projects already published on the GitHub Pages portfolio site. The daily 7 PM check compares new findings against this list (dedupe by title).
 
+## 2026-10-15 — Kite Battle! (scheduled slot Wed 2026-10-28 8 PM, user's pick: "শিডিউলের জন্য রাখবো")
+
+1. **Kite Battle! — Stick Figure Comedy Short**
+   - video: ~/workspace/portfolio/kite-battle/kite-battle-stick-figure-comedy-short.mp4 (56.6s, 1920×1080)
+   - thumbnail: assets/kite-battle.jpg (960×540)
+   - youtube: https://www.youtube.com/@purecartoonofficial (direct video link pending — NEW badge)
+   - tags: Stick Figure, Comedy, Short Film
+
 ## 2026-10-14 — Mosquito Friend! (Wed 8 PM scheduled slot, user's pick: "শিডিউলের জন্য রাখবো")
 
 1. **Mosquito Friend! — 3D Animated Short Film**
