@@ -2,6 +2,14 @@
 
 Projects already published on the GitHub Pages portfolio site. The daily 7 PM check compares new findings against this list (dedupe by title).
 
+## 2026-10-24 — The Ghost in the Jungle (off-schedule upload, user's pick via boss dispatch)
+
+0. **The Ghost in the Jungle — 2D Cartoon Horror Comedy Short**
+   - video: ~/workspace/portfolio/jungle-ghost/the-ghost-in-the-jungle-2d-cartoon-horror-comedy.mp4 (57s, 1080×1440 vertical)
+   - thumbnail: assets/ghost-in-the-jungle.jpg (960×540, blurred-fill from vertical)
+   - youtube: https://www.youtube.com/@purecartoonofficial (direct video link pending — NEW badge)
+   - tags: 2D Animation, Horror, Comedy
+
 ## 2026-10-15 — Kite Battle! (scheduled slot Wed 2026-10-28 8 PM, user's pick: "শিডিউলের জন্য রাখবো")
 
 1. **Kite Battle! — Stick Figure Comedy Short**
@@ -31,7 +39,7 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 1. **Chick and the Birthday Cake — 3D Animated Short Film**
    - video: ~/workspace/portfolio/chick-birthday-cake/chick-and-the-birthday-cake-3d-animated-short-film.mp4
    - thumbnail: assets/chick-birthday-cake.jpg
-   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - youtube: https://youtu.be/Xl-tOvx4Hs8 (direct video link — NEW badge removed 2026-10-23 after video went public)
    - tags: 3D Animation, Comedy, Short Film
 
 ## 2026-10-09 — initial launch (7 projects)
