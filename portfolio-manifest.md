@@ -7,7 +7,7 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 0. **The Ghost in the Jungle — 2D Cartoon Horror Comedy Short**
    - video: ~/workspace/portfolio/jungle-ghost/the-ghost-in-the-jungle-2d-cartoon-horror-comedy.mp4 (57s, 1080×1440 vertical)
    - thumbnail: assets/ghost-in-the-jungle.jpg (960×540, blurred-fill from vertical)
-   - youtube: https://www.youtube.com/@purecartoonofficial (direct video link pending — NEW badge)
+   - youtube: https://youtu.be/sDSgBi1XMuA (public 2026-10-24 20:00; card link swapped + NEW badge removed 2026-10-25)
    - tags: 2D Animation, Horror, Comedy
 
 ## 2026-10-15 — Kite Battle! (scheduled slot Wed 2026-10-28 8 PM, user's pick: "শিডিউলের জন্য রাখবো")
