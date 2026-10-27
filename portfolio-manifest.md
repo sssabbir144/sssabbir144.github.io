@@ -2,6 +2,15 @@
 
 Projects already published on the GitHub Pages portfolio site. The daily 7 PM check compares new findings against this list (dedupe by title).
 
+## 2026-10-27 — The Ghost on the Night Train (off-schedule, user's direct order via boss dispatch 2026-10-26)
+
+0. **The Ghost on the Night Train — Stick Figure Horror Story**
+   - video: ~/workspace/portfolio/ghost-train/the-ghost-on-the-night-train-stick-figure-horror-story.mp4 (63s, 1072×1920 vertical)
+   - thumbnail: assets/ghost-on-the-night-train.jpg (960×540, blurred-fill from vertical)
+   - youtube: https://www.youtube.com/@purecartoonofficial (direct video link pending — NEW badge; goes public Tue 2026-10-27 19:00, swap when the URL arrives)
+   - tags: Stick Figure, Horror, Short Film
+   - note: working title by boss — retitle everywhere if the user gives a real name
+
 ## 2026-10-24 — The Ghost in the Jungle (off-schedule upload, user's pick via boss dispatch)
 
 0. **The Ghost in the Jungle — 2D Cartoon Horror Comedy Short**
@@ -137,5 +146,5 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 15. **Bunny's Cake Caper — 3D Comedy Short**
    - video: ~/workspace/portfolio/bunny-cake-caper/bunny-s-cake-caper-3d-comedy-short.mp4 (58s)
    - thumbnail: assets/bunny-cake-caper.jpg (960×540)
-   - youtube: https://www.youtube.com/@purecartoonofficial (video link pending — NEW badge)
+   - youtube: https://youtu.be/1ifXcvWQl0A (direct video link — NEW badge removed 2026-10-25; public 2026-10-25 20:00, card link swapped 2026-10-25)
    - tags: 3D Animation, Comedy, Short Film
