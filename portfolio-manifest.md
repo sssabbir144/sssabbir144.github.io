@@ -7,7 +7,7 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 0. **The Ghost on the Night Train — Stick Figure Horror Story**
    - video: ~/workspace/portfolio/ghost-train/the-ghost-on-the-night-train-stick-figure-horror-story.mp4 (63s, 1072×1920 vertical)
    - thumbnail: assets/ghost-on-the-night-train.jpg (960×540, blurred-fill from vertical)
-   - youtube: https://www.youtube.com/@purecartoonofficial (direct video link pending — NEW badge; goes public Tue 2026-10-27 19:00, swap when the URL arrives)
+   - youtube: https://youtu.be/_G0GHCh3Dzo (direct link swapped Wed 2026-10-28, NEW badge removed; video public Tue 2026-10-27 19:00)
    - tags: Stick Figure, Horror, Short Film
    - note: working title by boss — retitle everywhere if the user gives a real name
 
