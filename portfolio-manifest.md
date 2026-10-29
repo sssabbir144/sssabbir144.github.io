@@ -151,7 +151,7 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 
 ## Service pages (added 2026-10-29 — multi-page SEO setup)
 
-Five full-SEO landing pages, one per service/style, each with its own keyword-focused English title, meta description, canonical, Open Graph/Twitter tags, Service JSON-LD, real selected-work cards and internal links to all sibling pages. Homepage Services cards link into them; sitemap lists all five. Adsterra placements remain homepage-only (unchanged from commit 9145997c) — expanding ads to the new pages is a 22*/boss decision, flagged to boss 2026-10-29.
+Five full-SEO landing pages, one per service/style, each with its own keyword-focused English title, meta description, canonical, Open Graph/Twitter tags, Service JSON-LD, real selected-work cards and internal links to all sibling pages. Homepage Services cards link into them; sitemap lists all five. Adsterra: the homepage placements (commit 9145997c) were extended to all five service pages later on 2026-10-29 on the boss's decision, reusing the same four existing units (top leaderboard/mobile after the hero, rectangle before Explore More, native before the footer) — no new units, no popunder/social bar/smartlink.
 
 - `2d-animation.html` — 2D Animation Services (6 works)
 - `3d-animation.html` — 3D Animation Services (6 works)
