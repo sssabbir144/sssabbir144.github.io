@@ -399,3 +399,5 @@ span.soc { cursor: default; }
 .footer-links { margin-bottom: .8rem; }
 .footer-links a { color: var(--muted); text-decoration: none; font-weight: 600; }
 .footer-links a:hover { color: var(--accent); }
+.pnav-share { background: none; border: none; color: #ffffff; font: inherit; font-weight: 600; font-size: .95rem; cursor: pointer; padding: 0; }
+.pnav-share:hover { color: var(--accent); }

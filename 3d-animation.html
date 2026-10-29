@@ -55,7 +55,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site-final-v2.css?v=20261029-2">
+  <link rel="stylesheet" href="site-final-v2.css?v=20261029-3">
   <link rel="icon" type="image/jpeg" href="assets/profile.jpg">
 </head>
 <body>
@@ -69,6 +69,7 @@
         <a href="index.html#filmography">Filmography</a>
         <a href="index.html#services">Services</a>
         <a href="index.html#contact">Contact</a>
+        <button class="pnav-share" type="button" aria-label="Share this page">Share</button>
       </nav>
     </div>
   </header>
@@ -253,6 +254,13 @@
     </div>
   </footer>
 
+  <script>
+  document.querySelector('.pnav-share').addEventListener('click', async function () {
+    var data = { title: document.title, url: window.location.href };
+    if (navigator.share) { try { await navigator.share(data); } catch (e) {} }
+    else if (navigator.clipboard) { try { await navigator.clipboard.writeText(data.url); alert('Link copied!'); } catch (e) {} }
+  });
+  </script>
   <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
