@@ -158,3 +158,9 @@ Five full-SEO landing pages, one per service/style, each with its own keyword-fo
 - `stick-figure-animation.html` — Stick Figure Animation (4 works)
 - `ghibli-style-animation.html` — Ghibli-Style Animation (1 work)
 - `kids-youtube-animation.html` — Kids Animation for YouTube (6 works)
+
+## SEO deepening (2026-10-29)
+- Service pages enriched: a "How It Works" 4-step section + a 3-question FAQ section with valid FAQPage JSON-LD on each of the 5 service pages (scripts: hidden_files/enrich-service-pages.py).
+- Two content/guide pages added with the full page standard (ads, GoatCounter, contact strip, share): `animation-process.html` ("How an Animated Short Film Is Made", Article schema) and `hire-a-freelance-animator.html` ("How to Hire a Freelance Animator", Article schema) — builder: hidden_files/build-guide-pages.py. Sitemap now lists 8 URLs; homepage footer links to both guides; service pages cross-link them.
+- Regeneration order for service pages: build-service-pages.py → apply-ads-service-pages.py → enrich-service-pages.py → re-add popunder/social-bar/GoatCounter lines (one-line inserts before </head> / </body>).
+- GoatCounter conclusively verified 2026-10-29 (recheck): script present exactly once in the live HTML of every page, gc.zgo.at/count.js HTTP 200, and the owner's dashboard received real visits the same morning — the tag works; it is invisible in rendered/visual spot-checks because it is an async end-of-body script, not a visible element.
