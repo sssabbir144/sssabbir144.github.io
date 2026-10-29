@@ -412,7 +412,7 @@ span.soc { cursor: default; }
 .crumb a { color: var(--accent); text-decoration: none; }
 .crumb a:hover { text-decoration: underline; }
 .card-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .9rem; }
-.mini-btn { display: inline-block; color: #ffffff; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: .5rem 1rem; font-weight: 600; font-size: .88rem; text-decoration: none; font-family: inherit; cursor: pointer; }
+.mini-btn { display: inline-block; color: #ffffff; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: .55rem 1.1rem; font-weight: 600; font-size: .92rem; text-decoration: none; font-family: inherit; cursor: pointer; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
 .mini-btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .mini-btn.primary:hover { color: var(--accent-ink); opacity: .9; }
@@ -425,13 +425,13 @@ span.soc { cursor: default; }
 .sheet-stage, .video-stage { display: flex; align-items: center; justify-content: center; background: var(--panel); border: 2px dashed var(--line); border-radius: var(--radius); margin: 1.2rem 0; }
 .sheet-stage { aspect-ratio: 4 / 5; }
 .video-stage { aspect-ratio: 16 / 9; }
-.stage-note { color: var(--muted); font-weight: 600; letter-spacing: .04em; padding: 2rem; text-align: center; }
+.stage-note { color: var(--muted); font-weight: 600; padding: 2rem; text-align: center; }
 .sheet-img { width: 100%; height: auto; display: block; border-radius: var(--radius); }
 .video-frame { position: relative; aspect-ratio: 16 / 9; margin: 1.2rem 0; border-radius: var(--radius); overflow: hidden; }
 .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.story-text p { font-size: 1.07rem; line-height: 1.85; color: #dcdcdc; margin-bottom: 1.15rem; }
+.story-text p { font-size: 1.08rem; color: var(--muted); margin-bottom: 1.2rem; max-width: 44rem; }
 .moral-box { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 1.6rem; }
-.moral-box p { color: #dcdcdc; line-height: 1.75; }
+.moral-box p { color: var(--muted); }
 .moral-box h3 { color: #ffffff; margin-top: 1.4rem; }
 @media print {
   .nav, .footer, .ad-slot, .pnav-share, .sheet-actions, .story-actions, #more, #contact-strip { display: none !important; }
