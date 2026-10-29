@@ -148,3 +148,13 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
    - thumbnail: assets/bunny-cake-caper.jpg (960×540)
    - youtube: https://youtu.be/1ifXcvWQl0A (direct video link — NEW badge removed 2026-10-25; public 2026-10-25 20:00, card link swapped 2026-10-25)
    - tags: 3D Animation, Comedy, Short Film
+
+## Service pages (added 2026-10-29 — multi-page SEO setup)
+
+Five full-SEO landing pages, one per service/style, each with its own keyword-focused English title, meta description, canonical, Open Graph/Twitter tags, Service JSON-LD, real selected-work cards and internal links to all sibling pages. Homepage Services cards link into them; sitemap lists all five. Adsterra placements remain homepage-only (unchanged from commit 9145997c) — expanding ads to the new pages is a 22*/boss decision, flagged to boss 2026-10-29.
+
+- `2d-animation.html` — 2D Animation Services (6 works)
+- `3d-animation.html` — 3D Animation Services (6 works)
+- `stick-figure-animation.html` — Stick Figure Animation (4 works)
+- `ghibli-style-animation.html` — Ghibli-Style Animation (1 work)
+- `kids-youtube-animation.html` — Kids Animation for YouTube (6 works)

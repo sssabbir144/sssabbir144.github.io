@@ -381,3 +381,21 @@ span.soc { cursor: default; }
   .ad-desktop { display: none; }
   .ad-mobile { display: block; }
 }
+
+/* ---------- Service pages (multi-page SEO setup, 2026-10-29) ---------- */
+.pnav-links { display: flex; gap: 1.4rem; margin-left: auto; }
+.pnav-links a { color: #ffffff; text-decoration: none; font-weight: 600; font-size: .95rem; }
+.pnav-links a:hover { color: var(--accent); }
+.page-main { padding-top: var(--nav-h); }
+.page-hero { padding-top: 2.5rem; padding-bottom: 1rem; }
+.page-title { font-size: clamp(2rem, 4.5vw, 3.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; color: #ffffff; margin-bottom: 1.4rem; }
+.svc-links { display: flex; flex-wrap: wrap; gap: .7rem; margin-bottom: 2rem; }
+.svc-link { color: #ffffff; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: .55rem 1.1rem; text-decoration: none; font-weight: 600; font-size: .92rem; }
+.svc-link:hover { border-color: var(--accent); color: var(--accent); }
+.inline-link { color: var(--accent); font-weight: 600; }
+.service-more { margin-top: .8rem; }
+.service-more a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.service-more a:hover { text-decoration: underline; }
+.footer-links { margin-bottom: .8rem; }
+.footer-links a { color: var(--muted); text-decoration: none; font-weight: 600; }
+.footer-links a:hover { color: var(--accent); }
