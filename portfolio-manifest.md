@@ -24,7 +24,7 @@ Projects already published on the GitHub Pages portfolio site. The daily 7 PM ch
 1. **Kite Battle! — Stick Figure Comedy Short**
    - video: ~/workspace/portfolio/kite-battle/kite-battle-stick-figure-comedy-short.mp4 (56.6s, 1920×1080)
    - thumbnail: assets/kite-battle.jpg (960×540)
-   - youtube: https://www.youtube.com/@purecartoonofficial (direct video link pending — NEW badge)
+   - youtube: https://youtu.be/9_6CQg9lg9M (direct link swapped Thu 2026-10-29, NEW badge removed; video public Wed 2026-10-28 ~20:33)
    - tags: Stick Figure, Comedy, Short Film
 
 ## 2026-10-14 — Mosquito Friend! (Wed 8 PM scheduled slot, user's pick: "শিডিউলের জন্য রাখবো")
