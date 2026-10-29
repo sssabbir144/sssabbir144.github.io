@@ -401,3 +401,8 @@ span.soc { cursor: default; }
 .footer-links a:hover { color: var(--accent); }
 .pnav-share { background: none; border: none; color: #ffffff; font: inherit; font-weight: 600; font-size: .95rem; cursor: pointer; padding: 0; }
 .pnav-share:hover { color: var(--accent); }
+@media (max-width: 600px) {
+  .pnav-links { gap: .8rem; }
+  .pnav-links a, .pnav-share { font-size: .84rem; }
+  .pnav-links a:first-child { display: none; }
+}
