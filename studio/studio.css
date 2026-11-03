@@ -273,6 +273,7 @@ body.gate-open { overflow: hidden; }
 
 /* ---------- QA fixes: anchored sections clear the sticky nav ---------- */
 #dashboard, #studioApp { scroll-margin-top: 70px; }
+#dashboard { padding-top: calc(var(--nav-h) + 14px); }
 /* ---------- Phase F: gate status + Pro badge ---------- */
 .login-status { min-height: 22px; margin: 14px auto 0; max-width: 430px; color: #ffe9a8; font-size: 14px; font-weight: 600; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
 .dash-badge.pro { background: var(--accent); color: var(--accent-ink); }

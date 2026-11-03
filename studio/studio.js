@@ -211,6 +211,7 @@ function drawChar(ctx, o, ev) {
   const arm = (sx, a) => {
     ctx.save(); ctx.translate(sx, -58); ctx.rotate(a);
     ctx.fillStyle = p.shirt; ctx.fillRect(-13, 0, 26, 92);
+    ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 2; ctx.strokeRect(-13, 0, 26, 92);
     ctx.fillStyle = p.skin; ctx.beginPath(); ctx.arc(0, 100, 13, 0, 7); ctx.fill();
     ctx.restore();
   };
@@ -264,10 +265,16 @@ function drawChar(ctx, o, ev) {
 /* ---------------- Stage engine ---------------- */
 const stageEl = $("#stageEl"), sctx = stageEl.getContext("2d");
 const imgCache = {}; // assetId -> HTMLImageElement
+const memBlobs = {}; // session-only fallback when browser storage refuses a write
 function ensureImage(assetId) {
   if (imgCache[assetId]) return imgCache[assetId];
   const img = new Image();
   imgCache[assetId] = img;
+  if (memBlobs[assetId]) {
+    img.src = URL.createObjectURL(memBlobs[assetId]);
+    img.onload = () => drawStage();
+    return img;
+  }
   idbGet("assets", assetId).then(rec => {
     if (rec && rec.blob) { img.src = URL.createObjectURL(rec.blob); img.onload = () => drawStage(); }
   }).catch(() => {});
@@ -575,13 +582,15 @@ function addProp(emoji, name) {
 }
 async function addImageFile(file) {
   const assetId = nid("as");
-  await idbPut("assets", { id: assetId, blob: file, name: file.name, at: Date.now() });
+  let stored = true;
+  try { await idbPut("assets", { id: assetId, blob: file, name: file.name, at: Date.now() }); }
+  catch { stored = false; memBlobs[assetId] = file; }
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
     const w = 430, h = Math.round(430 * img.naturalHeight / img.naturalWidth);
     addObject({ type: "image", name: file.name, assetId, w, h, x: 640, y: 380, scale: 1, rot: 0, flip: false, op: 1 });
-    setNote(`“${file.name}” is on your canvas.`);
+    setNote(stored ? `“${file.name}” is on your canvas.` : `“${file.name}” is on your canvas — kept for this session only, browser storage was unavailable.`);
   };
   img.src = url;
 }
@@ -731,6 +740,12 @@ function stopPlayback() {
 function playSceneVoice() {
   const sc = scene();
   if (!sc.voiceAssetId) return;
+  if (memBlobs[sc.voiceAssetId]) {
+    if (!playing) return;
+    voiceAudio = new Audio(URL.createObjectURL(memBlobs[sc.voiceAssetId]));
+    voiceAudio.play().catch(() => {});
+    return;
+  }
   idbGet("assets", sc.voiceAssetId).then(rec => {
     if (!rec || !rec.blob || !playing) return;
     voiceAudio = new Audio(URL.createObjectURL(rec.blob));
@@ -829,8 +844,8 @@ function applyStageZoom() {
   const sh = (scene().fx || {}).shake || 0;
   if (sh > 0) {
     const t = performance.now();
-    tx = Math.sin(t * 0.11) * sh * 0.09;
-    ty = Math.cos(t * 0.13) * sh * 0.07;
+    tx = Math.sin(t * 0.11) * sh * 0.35;
+    ty = Math.cos(t * 0.13) * sh * 0.28;
   }
   $("#stageCanvas").style.transform = `translate(${tx}px, ${ty}px) scale(${camZoom * sliderZoom})`;
 }
@@ -864,7 +879,7 @@ async function saveProject() {
   setNote(`Project “${project.name}” saved in this browser.${cloud ? " Cloud backup updated." : ""}`);
   renderDashboard("");
 }
-$("#saveProjectBtn").addEventListener("click", () => saveProject().catch(() => setNote("Save failed — browser storage is unavailable.")));
+$("#saveProjectBtn").addEventListener("click", () => saveProject().catch(e => setNote(`Save failed — ${(e && e.name) || "storage unavailable"}. Your work is still open in this tab; try saving again.`)));
 async function loadProject(name) {
   const rec = await idbGet("projects", name);
   if (!rec) return false;
@@ -1098,10 +1113,14 @@ const PANELS = {
 };
 async function attachVoice(blob, label) {
   const assetId = nid("vo");
-  await idbPut("assets", { id: assetId, blob, name: label, at: Date.now() });
+  let stored = true;
+  try { await idbPut("assets", { id: assetId, blob, name: label, at: Date.now() }); }
+  catch { stored = false; memBlobs[assetId] = blob; }
   scene().voiceAssetId = assetId;
   pushHistory(); renderTracks();
-  setNote(`Voice set for ${scene().name} — press Play and it speaks with the scene.`);
+  setNote(stored
+    ? `Voice set for ${scene().name} — press Play and it speaks with the scene.`
+    : `Voice set for ${scene().name} — kept for this session only, browser storage was unavailable.`);
 }
 let mediaRec = null, recChunks = [];
 function wirePanel() {
@@ -1410,7 +1429,7 @@ function wireFx() {
   });
   const shakeEl = $("#fxShake");
   shakeEl.addEventListener("input", () => { fxGet().shake = +shakeEl.value; upd(false); });
-  shakeEl.addEventListener("change", () => pushHistory());
+  shakeEl.addEventListener("change", () => { pushHistory(); setNote(+shakeEl.value > 0 ? `Camera shake on — intensity ${shakeEl.value}.` : "Camera shake off."); });
   let soundOn = false;
   $("#fxSoundBtn").addEventListener("click", (e) => {
     soundOn = !soundOn;
@@ -1507,6 +1526,7 @@ async function collectVoices() {
   for (let i = 0; i < project.scenes.length; i++) {
     const sc = project.scenes[i];
     if (sc.voiceAssetId) {
+      if (memBlobs[sc.voiceAssetId]) { out.push({ index: i, start, blob: memBlobs[sc.voiceAssetId] }); start += sc.duration || 0; continue; }
       const rec = await idbGet("assets", sc.voiceAssetId).catch(() => null);
       if (rec && rec.blob) out.push({ index: i, start, blob: rec.blob });
     }

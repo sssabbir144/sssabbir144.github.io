@@ -1,11 +1,11 @@
 /* Ss Animation — service worker (offline-first for the studio only).
    Scope is limited to /studio/ by this file's location. */
-const CACHE = "ssanim-studio-v12";
+const CACHE = "ssanim-studio-v13";
 const ASSETS = [
   "./",
   "./index.html",
-  "./studio.css?v=10",
-  "./studio.js?v=11",
+  "./studio.css?v=11",
+  "./studio.js?v=12",
   "./icon.svg",
   "./manifest.webmanifest",
   "../site-final-v2.css?v=20261029-6"
