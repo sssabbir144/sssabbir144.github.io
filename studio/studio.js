@@ -882,7 +882,7 @@ async function saveProject() {
   const all = await idbAll("projects");
   const exists = all.some(p => p.name === project.name);
   if (!exists && !isPro() && all.length >= 2) {
-    setNote("Free plan holds 2 projects — delete one from Projects, or save over an existing name.");
+    setNote("Free plan holds 2 projects — upgrade to Pro for unlimited projects, or save over an existing name.");
     return;
   }
   const prevRec2 = all.find(p => p.name === project.name);
@@ -2001,7 +2001,6 @@ function projCardHTML(p, opts) {
       <button class="btn btn-accent pc-open" data-open="${opts.attr}" type="button">Open Project</button>
     </div>`;
 }
-let pendingDelName = null, pendingDelScope = "local";
 async function renderDashboard(filter) {
   const listEl = $("#projList"), emptyEl = $("#projEmpty");
   if (!listEl) return;
@@ -2044,27 +2043,6 @@ const msb = $("#manageSubBtn"); if (msb) msb.addEventListener("click", () => ope
 const dpb = $("#dashPayBtn"); if (dpb) dpb.addEventListener("click", () => openPro());
 const dlb = $("#dashLogoutBtn"); if (dlb) dlb.addEventListener("click", () => { signOutUser(); });
 $("#powerBtn").addEventListener("click", () => { signOutUser(); });
-$("#delConfirmBtn").addEventListener("click", async () => {
-  const name = pendingDelName, scope = pendingDelScope;
-  pendingDelName = null;
-  $("#delModal").hidden = true;
-  if (!name) return;
-  let localOk = true, cloudOkDel = true;
-  if (scope !== "cloud") {
-    try {
-      await idbDel("projects", name);
-      if (localStorage.getItem("ssanim_last") === name) localStorage.removeItem("ssanim_last");
-    } catch { localOk = false; }
-  }
-  if (fb && fb.user && cloudOk) {
-    try { await fb.fsM.deleteDoc(fb.fsM.doc(fb.db, "users", fb.user.uid, "projects", encodeURIComponent(name))); }
-    catch { cloudOkDel = false; }
-  }
-  if (!localOk) setNote("Delete failed — browser storage is unavailable.");
-  else if (!cloudOkDel) setNote(`Project “${name}” deleted from this browser — its cloud copy could not be removed.`);
-  else setNote(`Project “${name}” deleted.`);
-  renderDashboard($("#projSearch") ? $("#projSearch").value : "");
-});
 /* Account menu on the dashboard avatar (owner's order): tap avatar → name + email + Sign out */
 (() => {
   const av = $("#dashAvatar"), menu = $("#acctMenu"), out = $("#acctSignOutBtn");
