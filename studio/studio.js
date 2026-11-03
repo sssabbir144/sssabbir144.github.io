@@ -93,7 +93,7 @@ const VEHICLE_LIST = [["🚗", "Car", 0], ["🚲", "Bike", 0], ["🚌", "Bus", 0
 const ANIMAL_LIST = [["🐶", "Dog", 0], ["🐱", "Cat", 0], ["🐦", "Bird", 0], ["🐴", "Horse", 1], ["🐰", "Bunny", 0], ["🐸", "Frog", 0]];
 
 /* ---------------- Project state ---------------- */
-function freshScene(name) { return { id: nid("sc"), name, duration: 5, bg: "village", objects: [], voiceAssetId: null }; }
+function freshScene(name) { return { id: nid("sc"), name, duration: 5, bg: null, objects: [], voiceAssetId: null }; }
 function freshProject() { return { name: "Untitled Project", scenes: [freshScene("Scene 1")] }; }
 let project = freshProject();
 let savedName = null; // name the current project was last saved under (rename migration)
@@ -337,8 +337,10 @@ function drawStage() {
     if (bimg && bimg.complete && bimg.naturalWidth) {
       const s = Math.max(1280 / bimg.naturalWidth, 720 / bimg.naturalHeight);
       sctx.drawImage(bimg, (1280 - bimg.naturalWidth * s) / 2, (720 - bimg.naturalHeight * s) / 2, bimg.naturalWidth * s, bimg.naturalHeight * s);
-    } else paintBG(sctx, sc.bg);
-  } else paintBG(sctx, sc.bg);
+    } else if (sc.bg) paintBG(sctx, sc.bg);
+    else { sctx.fillStyle = "#000"; sctx.fillRect(0, 0, 1280, 720); }
+  } else if (sc.bg) paintBG(sctx, sc.bg);
+  else { sctx.fillStyle = "#000"; sctx.fillRect(0, 0, 1280, 720); }
   if (sc.bgColor) {
     sctx.save(); sctx.globalAlpha = 0.35; sctx.fillStyle = sc.bgColor;
     sctx.fillRect(0, 0, 1280, 720); sctx.restore();
