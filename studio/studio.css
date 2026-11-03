@@ -180,8 +180,10 @@ input[type="color"] { background: var(--panel-2); border: 1px solid var(--line);
 .dash-power { width: 42px; height: 42px; border-radius: 50%; background: transparent; border: 0; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .dash-power:hover { color: var(--accent); background: rgba(255,255,255,.05); }
 .dash-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 16px; }
-.dash-cover { position: relative; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; }
-.dash-cover-art { display: block; width: 100%; height: clamp(180px, 32vw, 320px); }
+.dash-cover { position: relative; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; height: clamp(180px, 32vw, 320px);
+  background: linear-gradient(to bottom, #dbe9ec 0%, #99d8f3 18%, #d7e9d9 38%, #8fb54a 68%, #5f8529 84%, #436f44 100%); }
+.cover-plate { position: absolute; top: 0; right: 148px; height: 100%; width: auto; display: block; }
+@media (max-width: 480px) { .cover-plate { right: 136px; } }
 .dash-socials { position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; }
 .dash-socials a { width: 42px; height: 42px; border-radius: 50%; background: rgba(16,18,24,.82); color: #fff; display: flex; align-items: center; justify-content: center; text-decoration: none; }
 .dash-socials a:hover { background: var(--accent); color: var(--accent-ink); }
