@@ -2,6 +2,13 @@
 
 Projects already published on the GitHub Pages portfolio site. The daily 7 PM check compares new findings against this list (dedupe by title).
 
+## 2026-11-03 — Ss Animation studio (Phase A shell, owner's build order via Boss)
+
+0. **Ss Animation — 2D Animation Studio (web app, not a film)**
+   - page: https://sssabbir144.github.io/studio/ (repo folder `studio/`: index.html + studio.css + studio.js + manifest.webmanifest + sw.js + icon.svg)
+   - commit: 12323539 (Phase A) — landing + studio shell (11-tool rail, timeline, export dialog, Pro/manual-payment modal), portfolio design system, PWA groundwork; homepage nav + topics links added; sitemap now 17 URLs
+   - note: NOT a portfolio film — do not count it in filmography stats or the Page/YouTube video queue. Payment number shown publicly by owner's order: 01313950953 (bKash/Nagad/Rocket). Build phases continue per ~/workspace/github/animation-studio/FEASIBILITY-AND-BUILD-PLAN.md
+
 ## 2026-10-27 — The Ghost on the Night Train (off-schedule, user's direct order via boss dispatch 2026-10-26)
 
 0. **The Ghost on the Night Train — Stick Figure Horror Story**
