@@ -703,14 +703,6 @@ function restoreHistory(json) {
   renderScenes(); renderTracks(); drawStage(); drawPlayhead();
   restoring = false;
 }
-$("#undoBtn").addEventListener("click", () => {
-  if (hIdx <= 0) { setNote("Nothing to undo yet."); return; }
-  hIdx--; restoreHistory(history[hIdx]);
-});
-$("#redoBtn").addEventListener("click", () => {
-  if (hIdx >= history.length - 1) { setNote("Nothing to redo yet."); return; }
-  hIdx++; restoreHistory(history[hIdx]);
-});
 
 /* ---------------- Timeline ---------------- */
 const fmt = s => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(Math.floor(s % 60)).padStart(2, "0");
