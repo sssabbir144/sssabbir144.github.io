@@ -150,3 +150,20 @@ input[type="color"] { background: var(--panel-2); border: 1px solid var(--line);
   .stage-area { min-height: 300px; }
   .project-name { min-width: 110px; }
 }
+
+/* ---------- Phase B: editor engine ---------- */
+#stageEl { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#stageEl:active { cursor: grabbing; }
+.stage-canvas { background: #0e0e0e; }
+.obj-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--line); background: #141414; }
+.obj-tools[hidden] { display: none; }
+.obj-name { color: var(--accent); font-weight: 700; font-size: 13px; margin-right: 4px; }
+.track-lane { position: relative; overflow: visible; }
+.kf { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px;
+  background: var(--accent); transform: rotate(45deg); border: 1px solid #0006; cursor: pointer; padding: 0; }
+.kf.active { background: #fff; }
+.track-row .track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-card.clickable { cursor: pointer; }
+.mini-card.clickable:hover { border-color: var(--accent); }
+.mini-card .mc-add { display: block; margin-top: 6px; color: var(--accent); font-size: 12px; font-weight: 700; }
+.scene-chip .sc-dur { opacity: .75; font-weight: 400; }

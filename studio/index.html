@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=1">
+<link rel="stylesheet" href="studio.css?v=2">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -106,18 +106,23 @@
           </div>
           <div class="stage-viewport" id="stageViewport">
             <div class="stage-canvas" id="stageCanvas">
-              <svg class="stage-art" viewBox="0 0 1280 720" role="img" aria-label="Empty scene preview">
-                <rect width="1280" height="720" fill="#87b5d9"/>
-                <circle cx="1090" cy="120" r="55" fill="#ffd94d"/>
-                <path d="M0 520 L260 380 L520 520 L820 360 L1080 500 L1280 420 L1280 720 L0 720 Z" fill="#5e9e52"/>
-                <path d="M0 600 L340 480 L700 610 L1020 500 L1280 590 L1280 720 L0 720 Z" fill="#4a8a41"/>
-                <rect y="640" width="1280" height="80" fill="#3f7d38"/>
-              </svg>
-              <div class="stage-empty">
+              <canvas id="stageEl" width="1280" height="720" aria-label="Animation canvas"></canvas>
+              <div class="stage-empty" id="stageEmpty">
                 <p class="stage-empty-title">Your scene starts here</p>
-                <p class="stage-empty-sub">Pick a character or a background from the tools on the left.</p>
+                <p class="stage-empty-sub">Pick a character or a background from the tools on the left — drag anything to move it.</p>
               </div>
             </div>
+          </div>
+          <div class="obj-tools" id="objTools" hidden>
+            <span class="obj-name" id="objName">Object</span>
+            <button class="tl-btn" id="objScaleUp" type="button" title="Bigger">＋ Size</button>
+            <button class="tl-btn" id="objScaleDown" type="button" title="Smaller">－ Size</button>
+            <button class="tl-btn" id="objRotate" type="button" title="Rotate 15°">⟳ Rotate</button>
+            <button class="tl-btn" id="objFlip" type="button" title="Flip">⇋ Flip</button>
+            <button class="tl-btn" id="objFwd" type="button" title="Bring forward">↑ Forward</button>
+            <button class="tl-btn" id="objBack" type="button" title="Send backward">↓ Backward</button>
+            <button class="tl-btn" id="objDup" type="button" title="Duplicate">Duplicate</button>
+            <button class="tl-btn" id="objDel" type="button" title="Delete">Delete</button>
           </div>
         </div>
       </div>
@@ -139,6 +144,8 @@
             <button class="tl-btn" id="splitSceneBtn" type="button">Split</button>
             <button class="tl-btn" id="cameraBtn" type="button">Camera</button>
             <button class="tl-btn" id="voiceBtn" type="button">Voice</button>
+            <button class="tl-btn" id="keyBtn" type="button" title="Add a keyframe for the selected object at the playhead">◆ Keyframe</button>
+            <button class="tl-btn" id="keyDelBtn" type="button" title="Delete the keyframe at the playhead">✕ Key</button>
           </div>
           <div class="timeline-tools">
             <button class="tl-btn" id="undoBtn" type="button" title="Undo">↩ Undo</button>
@@ -151,8 +158,7 @@
         </div>
         <div class="timeline-tracks" id="timelineTracks">
           <div class="playhead" id="playhead"></div>
-          <div class="track-row"><span class="track-name">Layer 1</span><div class="track-lane"></div></div>
-          <div class="track-row"><span class="track-name">Voice</span><div class="track-lane"></div></div>
+          <div id="trackRows"></div>
           <button class="tl-btn layers-toggle" id="layersBtn" type="button">Layers ▾</button>
         </div>
       </div>
@@ -340,6 +346,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=1"></script>
+<script src="studio.js?v=2"></script>
 </body>
 </html>
