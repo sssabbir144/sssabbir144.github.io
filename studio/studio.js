@@ -15,11 +15,12 @@ const nid = p => p + (_uid++) + Date.now().toString(36);
 let _db = null;
 function idbOpen() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open("ssanim", 1);
+    const r = indexedDB.open("ssanim", 2);
     r.onupgradeneeded = () => {
       const d = r.result;
       if (!d.objectStoreNames.contains("projects")) d.createObjectStore("projects", { keyPath: "name" });
       if (!d.objectStoreNames.contains("assets")) d.createObjectStore("assets", { keyPath: "id" });
+      if (!d.objectStoreNames.contains("library")) d.createObjectStore("library", { keyPath: "id" });
     };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -66,11 +67,20 @@ const CHAR_PRESETS = {
 const BG_LIST = [
   ["village", "Village"], ["city", "City Street"], ["forest", "Forest"],
   ["river", "River Side"], ["home", "Home Room"], ["school", "School"]];
+/* 49 library props: [emoji, name, isPro] */
 const PROP_LIST = [
-  ["📺", "TV"], ["🌀", "Fan"], ["🪑", "Chair"], ["🛋️", "Sofa"], ["🌳", "Tree"], ["🏠", "House"],
-  ["🚗", "Car"], ["🚲", "Bike"], ["📱", "Mobile"], ["💡", "Lamp"], ["📚", "Book"], ["🪴", "Plant"]];
-const VEHICLE_LIST = [["🚗", "Car"], ["🚲", "Bike"], ["🚌", "Bus"], ["🚑", "Ambulance"], ["🚓", "Police Car"], ["🛵", "Scooter"]];
-const ANIMAL_LIST = [["🐶", "Dog"], ["🐱", "Cat"], ["🐦", "Bird"], ["🐴", "Horse"], ["🐰", "Bunny"], ["🐸", "Frog"]];
+  ["📺", "TV", 0], ["🌀", "Fan", 0], ["🪑", "Chair", 0], ["🪟", "Window", 0], ["🛋️", "Sofa", 0],
+  ["🌳", "Tree", 0], ["🏠", "House", 0], ["🚗", "Car", 0], ["🚲", "Bike", 0], ["📱", "Mobile", 0],
+  ["💡", "Lamp", 0], ["📚", "Books", 0], ["🪴", "Plant", 0], ["🛏️", "Bed", 0], ["🚪", "Door", 0],
+  ["⏰", "Clock", 0], ["📻", "Radio", 0], ["🍎", "Apple", 0], ["🚦", "Traffic Light", 0], ["🏫", "School", 0],
+  ["☂️", "Umbrella", 0], ["🔦", "Torch", 0], ["🗑️", "Dustbin", 0], ["📫", "Postbox", 0], ["🚧", "Barrier", 0],
+  ["☁️", "Cloud", 0], ["🌻", "Sunflower", 0], ["🎈", "Balloon", 0], ["🛒", "Cart", 0], ["⚽", "Ball", 0],
+  ["💻", "Laptop", 1], ["🖥️", "Computer", 1], ["📷", "Camera", 1], ["🎸", "Guitar", 1], ["🚀", "Rocket", 1],
+  ["⛵", "Boat", 1], ["🚂", "Train", 1], ["✈️", "Plane", 1], ["🏰", "Castle", 1], ["🌴", "Palm Tree", 1],
+  ["⛲", "Fountain", 1], ["🌉", "Bridge", 1], ["🏥", "Hospital", 1], ["🎡", "Ferris Wheel", 1], ["🚁", "Helicopter", 1],
+  ["🧸", "Teddy Bear", 1], ["🌈", "Rainbow", 1], ["⭐", "Star", 1], ["🎁", "Gift Box", 1]];
+const VEHICLE_LIST = [["🚗", "Car", 0], ["🚲", "Bike", 0], ["🚌", "Bus", 0], ["🚑", "Ambulance", 0], ["🚓", "Police Car", 1], ["🛵", "Scooter", 0]];
+const ANIMAL_LIST = [["🐶", "Dog", 0], ["🐱", "Cat", 0], ["🐦", "Bird", 0], ["🐴", "Horse", 1], ["🐰", "Bunny", 0], ["🐸", "Frog", 0]];
 
 /* ---------------- Project state ---------------- */
 function freshScene(name) { return { id: nid("sc"), name, duration: 5, bg: "village", objects: [], voiceAssetId: null }; }
@@ -98,6 +108,7 @@ function evalAt(o, t) {
 }
 function objSize(o) {
   if (o.type === "char") return { w: 200, h: 350 };
+  if (o.type === "sprite") return { w: 220, h: 220 };
   if (o.type === "image") return { w: o.w || 420, h: o.h || 300 };
   return { w: 120, h: 120 };
 }
@@ -181,19 +192,25 @@ function drawChar(ctx, o, ev) {
   ctx.rotate(ev.rot * Math.PI / 180);
   ctx.scale(ev.scale * (o.flip ? -1 : 1), ev.scale);
   ctx.globalAlpha = ev.op;
-  // legs + shoes
-  ctx.fillStyle = p.pants;
-  ctx.fillRect(-52, 40, 38, 105); ctx.fillRect(14, 40, 38, 105);
-  ctx.fillStyle = "#26221f";
-  ctx.fillRect(-58, 140, 48, 16); ctx.fillRect(10, 140, 48, 16);
+  // legs + shoes (hip-pivot swing — walk cycles for sprite packs)
+  const sw = ev.swing || 0;
+  const leg = (hx, a) => {
+    ctx.save(); ctx.translate(hx, 42); ctx.rotate(a);
+    ctx.fillStyle = p.pants; ctx.fillRect(-19, 0, 38, 103);
+    ctx.fillStyle = "#26221f"; ctx.fillRect(-24, 100, 48, 16);
+    ctx.restore();
+  };
+  leg(-33, sw); leg(33, -sw);
   // skirt
   if (p.skirt) { ctx.fillStyle = p.shirt; ctx.beginPath(); ctx.moveTo(-58, 30); ctx.lineTo(58, 30); ctx.lineTo(76, 95); ctx.lineTo(-76, 95); ctx.fill(); }
-  // arms
-  ctx.fillStyle = p.shirt;
-  ctx.fillRect(-84, -62, 26, 92); ctx.fillRect(58, -62, 26, 92);
-  ctx.fillStyle = p.skin;
-  ctx.beginPath(); ctx.arc(-71, 40, 13, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.arc(71, 40, 13, 0, 7); ctx.fill();
+  // arms (shoulder-pivot swing, opposite to the legs)
+  const arm = (sx, a) => {
+    ctx.save(); ctx.translate(sx, -58); ctx.rotate(a);
+    ctx.fillStyle = p.shirt; ctx.fillRect(-13, 0, 26, 92);
+    ctx.fillStyle = p.skin; ctx.beginPath(); ctx.arc(0, 100, 13, 0, 7); ctx.fill();
+    ctx.restore();
+  };
+  arm(-71, -sw * 0.8); arm(71, sw * 0.8);
   // torso
   ctx.fillStyle = p.shirt;
   ctx.beginPath(); ctx.roundRect(-60, -70, 120, 122, 18); ctx.fill();
@@ -248,10 +265,25 @@ function ensureImage(assetId) {
   }).catch(() => {});
   return img;
 }
+const dataImgCache = {};
+function ensureDataImage(url) {
+  if (!dataImgCache[url]) {
+    const i = new Image();
+    i.src = url; i.onload = () => drawStage();
+    dataImgCache[url] = i;
+  }
+  return dataImgCache[url];
+}
 function drawStage() {
   const sc = scene();
   sctx.clearRect(0, 0, 1280, 720);
-  paintBG(sctx, sc.bg);
+  if (sc.bgAsset) {
+    const bimg = ensureImage(sc.bgAsset);
+    if (bimg && bimg.complete && bimg.naturalWidth) {
+      const s = Math.max(1280 / bimg.naturalWidth, 720 / bimg.naturalHeight);
+      sctx.drawImage(bimg, (1280 - bimg.naturalWidth * s) / 2, (720 - bimg.naturalHeight * s) / 2, bimg.naturalWidth * s, bimg.naturalHeight * s);
+    } else paintBG(sctx, sc.bg);
+  } else paintBG(sctx, sc.bg);
   for (const o of sc.objects) {
     const ev = evalAt(o, playT);
     if (o.type === "char") drawChar(sctx, o, ev);
@@ -263,6 +295,17 @@ function drawStage() {
       sctx.font = "100px serif"; sctx.textAlign = "center"; sctx.textBaseline = "middle";
       sctx.fillText(o.emoji, 0, 0);
       sctx.restore();
+    } else if (o.type === "sprite") {
+      const fi = Math.floor(playT / (o.frameDur || 0.12)) % o.frames.length;
+      const img = ensureDataImage(o.frames[fi]);
+      if (img && img.complete && img.naturalWidth) {
+        sctx.save();
+        sctx.translate(ev.x, ev.y); sctx.rotate(ev.rot * Math.PI / 180);
+        sctx.scale(ev.scale * (o.flip ? -1 : 1), ev.scale);
+        sctx.globalAlpha = ev.op;
+        sctx.drawImage(img, -110, -110, 220, 220);
+        sctx.restore();
+      }
     } else if (o.type === "image") {
       const img = ensureImage(o.assetId);
       if (img && img.complete && img.naturalWidth) {
@@ -283,8 +326,152 @@ function drawStage() {
       sctx.restore();
     }
   }
+  drawFX(sctx, sc);
   $("#stageEmpty").style.display = sc.objects.length ? "none" : "";
   syncObjTools();
+}
+/* ---------------- Effects rendering (rain / river / thunder) ---------------- */
+const frand = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+function drawFX(ctx, sc) {
+  const fx = sc.fx || {};
+  const now = performance.now() / 1000;
+  if (fx.river) {
+    const rv = fx.river, wpx = 60 + rv.width * 2.2;
+    ctx.save();
+    ctx.translate(640, 720 - wpx / 2 - 6);
+    ctx.rotate((rv.angle - 50) * 0.0035);
+    const g = ctx.createLinearGradient(0, -wpx / 2, 0, wpx / 2);
+    g.addColorStop(0, rv.color2); g.addColorStop(0.5, rv.color1); g.addColorStop(1, rv.color2);
+    ctx.fillStyle = g; ctx.fillRect(-760, -wpx / 2, 1520, wpx);
+    ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 4;
+    const off = (now * rv.flow * 2.4) % 130;
+    for (let x = -760 - 130 + off; x < 760; x += 130) {
+      ctx.beginPath(); ctx.moveTo(x, -wpx * 0.22); ctx.quadraticCurveTo(x + 26, -wpx * 0.34, x + 52, -wpx * 0.22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 40, wpx * 0.24); ctx.quadraticCurveTo(x + 66, wpx * 0.12, x + 92, wpx * 0.24); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  if (fx.rain) {
+    const rn = fx.rain, count = Math.round(rn.intensity * 3.6);
+    ctx.save();
+    ctx.strokeStyle = `rgba(200,225,245,${0.25 + rn.opacity / 100 * 0.65})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+      const sx = frand(i) * 1320 - 20;
+      const sy = (frand(i + 500) * 720 + now * (240 + rn.speed * 7)) % 760 - 20;
+      const wx = rn.wind * 0.35 * (sy / 720 + 0.4);
+      ctx.moveTo(sx + wx, sy);
+      ctx.lineTo(sx + wx - rn.wind * 0.14, sy + 17);
+    }
+    ctx.stroke();
+    if (rn.splash) {
+      ctx.strokeStyle = `rgba(210,235,250,${0.35 + rn.opacity / 200})`;
+      for (let i = 0; i < count / 6; i++) {
+        const sx = frand(i + 900) * 1280, ph = (now * 3 + frand(i) * 6) % 1;
+        ctx.beginPath(); ctx.ellipse(sx, 706, 4 + ph * 8, 1.6 + ph * 2.6, 0, 0, 7); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  if (fx.thunder) {
+    const cyc = (performance.now() % 5600);
+    const a = cyc < 110 ? 0.5 : (cyc > 320 && cyc < 410 ? 0.32 : 0);
+    if (a > 0) { ctx.fillStyle = `rgba(240,246,255,${a})`; ctx.fillRect(0, 0, 1280, 720); }
+  }
+}
+/* FX animation loop — runs while rain/river/thunder/shake is live */
+let fxRaf = null;
+function fxActive() {
+  const fx = scene().fx || {};
+  return !!(fx.rain || fx.river || fx.thunder || (fx.shake || 0) > 0);
+}
+function ensureFxLoop() {
+  if (fxRaf) return;
+  const step = () => {
+    if (!fxActive() && !playing) { fxRaf = null; applyStageZoom(); drawStage(); return; }
+    if (((scene().fx || {}).shake || 0) > 0) applyStageZoom();
+    if (!playing) drawStage();
+    fxRaf = requestAnimationFrame(step);
+  };
+  fxRaf = requestAnimationFrame(step);
+}
+/* Rain sound — synthesized white noise (Web Audio), no audio file needed */
+let rainAudio = null;
+function setRainSound(on, intensity) {
+  try {
+    if (!rainAudio) {
+      const AC = new (window.AudioContext || window.webkitAudioContext)();
+      const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+      const filt = AC.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 900;
+      const gain = AC.createGain(); gain.gain.value = 0;
+      src.connect(filt); filt.connect(gain); gain.connect(AC.destination);
+      src.start();
+      rainAudio = { AC, gain };
+    }
+    rainAudio.AC.resume();
+    rainAudio.gain.gain.setTargetAtTime(on ? 0.04 + (intensity || 50) / 100 * 0.09 : 0, rainAudio.AC.currentTime, 0.2);
+  } catch { /* audio unavailable — visuals still work */ }
+}
+/* ---------------- Sprite pack painters (6 frames each) ---------------- */
+function drawBird(x, ph) {
+  const bob = Math.sin(ph) * 8;
+  x.save(); x.translate(110, 104 + bob);
+  x.fillStyle = "#f2a541";
+  x.beginPath(); x.ellipse(0, 6, 46, 26, 0, 0, 7); x.fill();
+  x.fillStyle = "#f7c873"; x.beginPath(); x.arc(34, -8, 17, 0, 7); x.fill();
+  x.fillStyle = "#e2703a"; x.beginPath(); x.moveTo(48, -10); x.lineTo(66, -4); x.lineTo(48, 2); x.fill();
+  x.fillStyle = "#26221f"; x.beginPath(); x.arc(38, -12, 3.4, 0, 7); x.fill();
+  x.save(); x.translate(-6, -4); x.rotate(Math.sin(ph) * 0.9 - 0.25);
+  x.fillStyle = "#d9832e"; x.beginPath(); x.ellipse(-16, -16, 34, 13, -0.5, 0, 7); x.fill(); x.restore();
+  x.fillStyle = "#d9832e"; x.beginPath(); x.moveTo(-42, 0); x.lineTo(-66, -12); x.lineTo(-62, 14); x.fill();
+  x.restore();
+}
+function drawQuad(x, ph, kind) {
+  const dog = kind === "dog";
+  x.save(); x.translate(110, 118);
+  const lp = Math.sin(ph) * 0.55;
+  x.strokeStyle = dog ? "#8a6844" : "#565b66"; x.lineWidth = 9; x.lineCap = "round";
+  const legL = (lx, a) => { x.save(); x.translate(lx, 18); x.rotate(a); x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 34); x.stroke(); x.restore(); };
+  legL(-30, lp); legL(30, lp); legL(-16, -lp); legL(42, -lp);
+  x.fillStyle = dog ? "#a97c50" : "#788089";
+  x.beginPath(); x.roundRect(-52, -16, 104, 40, 16); x.fill();
+  x.save(); x.translate(-52, -8); x.rotate(Math.sin(ph * 2) * 0.4 - 0.5); x.fillRect(-26, -5, 28, 9); x.restore();
+  x.beginPath(); x.arc(64, -18, 21, 0, 7); x.fill();
+  if (dog) { x.fillStyle = "#8a6844"; x.beginPath(); x.ellipse(56, -26, 8, 15, 0.4, 0, 7); x.fill(); }
+  else {
+    x.fillStyle = "#788089";
+    x.beginPath(); x.moveTo(50, -34); x.lineTo(56, -50); x.lineTo(64, -36); x.fill();
+    x.beginPath(); x.moveTo(66, -36); x.lineTo(76, -48); x.lineTo(80, -32); x.fill();
+  }
+  x.fillStyle = "#26221f"; x.beginPath(); x.arc(70, -20, 3.2, 0, 7); x.fill();
+  x.beginPath(); x.arc(85, -14, 4.5, 0, 7); x.fill();
+  x.restore();
+}
+function spriteFrames(kind) {
+  const frames = [];
+  for (let i = 0; i < 6; i++) {
+    const c = document.createElement("canvas"); c.width = c.height = 220;
+    const x = c.getContext("2d"), ph = i / 6 * Math.PI * 2;
+    if (kind === "bird") drawBird(x, ph);
+    else if (kind === "dog" || kind === "cat") drawQuad(x, ph, kind);
+    else if (kind === "walkers") {
+      drawChar(x, { params: CHAR_PRESETS["Hero Boy"], flip: false }, { x: 64, y: 118, scale: 0.5, rot: 0, op: 1, swing: Math.sin(ph) * 0.5 });
+      drawChar(x, { params: CHAR_PRESETS["Hero Girl"], flip: false }, { x: 154, y: 118, scale: 0.5, rot: 0, op: 1, swing: Math.sin(ph + Math.PI) * 0.5 });
+    } else {
+      const preset = kind === "girl" ? CHAR_PRESETS["Hero Girl"] : CHAR_PRESETS["Hero Boy"];
+      drawChar(x, { params: preset, flip: false }, { x: 110, y: 118, scale: 0.52, rot: 0, op: 1, swing: Math.sin(ph) * 0.5 });
+    }
+    frames.push(c.toDataURL("image/png"));
+  }
+  return frames;
+}
+function addSpritePack(kind, name) {
+  addObject({ type: "sprite", name, frames: spriteFrames(kind), frameDur: 0.12, x: 640, y: 430, scale: 1, rot: 0, flip: false, op: 1 });
+  setNote(`${name} added — press Play and it moves. Scrub the playhead to step through the cycle.`);
 }
 function stagePos(evt) {
   const r = stageEl.getBoundingClientRect();
@@ -596,7 +783,16 @@ $("#cameraBtn").addEventListener("click", () => {
   setNote(`Camera framing ${Math.round(camZoom * 100)}% — a closer shot for this scene.`);
 });
 let sliderZoom = 1;
-function applyStageZoom() { $("#stageCanvas").style.transform = `scale(${camZoom * sliderZoom})`; }
+function applyStageZoom() {
+  let tx = 0, ty = 0;
+  const sh = (scene().fx || {}).shake || 0;
+  if (sh > 0) {
+    const t = performance.now();
+    tx = Math.sin(t * 0.11) * sh * 0.09;
+    ty = Math.cos(t * 0.13) * sh * 0.07;
+  }
+  $("#stageCanvas").style.transform = `translate(${tx}px, ${ty}px) scale(${camZoom * sliderZoom})`;
+}
 $("#canvasZoom").addEventListener("input", (e) => { sliderZoom = e.target.value / 100; applyStageZoom(); });
 $("#timelineZoom").addEventListener("input", (e) => {
   const z = 0.4 + e.target.value / 100;
@@ -686,17 +882,30 @@ function chips(items, active) {
 function note(t) { return `<p class="panel-note">${t}</p>`; }
 let mediaTab = 0;
 const MEDIA_TABS = ["Backgrounds", "People", "Vehicles", "Animals", "Objects", "Sounds", "Upload"];
+function propCard(v) {
+  const [emoji, name, pro] = v;
+  return `<div class="mini-card clickable" data-prop="${emoji}|${name}|${pro ? 1 : 0}">
+    <span class="mc-ico">${emoji}</span><span class="mc-name">${name}</span>
+    ${pro ? `<span class="lock-tag">🔒 PRO</span>` : `<span class="mc-add">+ Add to canvas</span>`}</div>`;
+}
+function libCard(it, action, label) {
+  const url = it.blob ? URL.createObjectURL(it.blob) : "";
+  return `<div class="mini-card clickable" data-lib="${action}|${it.id}">
+    ${url ? `<img class="lib-thumb" src="${url}" alt="">` : `<span class="mc-ico">🖼️</span>`}
+    <span class="mc-name">${it.name}</span>
+    ${it.pro ? `<span class="lock-tag">🔒 PRO</span>` : `<span class="mc-add">${label}</span>`}</div>`;
+}
 function mediaGrid() {
   if (mediaTab === 0) return `<div class="card-grid">${BG_LIST.map(b =>
-    `<div class="mini-card clickable" data-bg="${b[0]}"><span class="mc-ico">🏞️</span><span class="mc-name">${b[1]}</span><span class="mc-add">Set as scene background</span></div>`).join("")}</div>`;
+    `<div class="mini-card clickable" data-bg="${b[0]}"><span class="mc-ico">🏞️</span><span class="mc-name">${b[1]}</span><span class="mc-add">Set as scene background</span></div>`).join("")}
+    ${libraryItems.filter(i => i.kind === "background").map(i => libCard(i, "bg", "Set as background")).join("")}</div>`;
   if (mediaTab === 1) return `<div class="card-grid">${Object.keys(CHAR_PRESETS).map(c =>
-    `<div class="mini-card clickable" data-char="${c}"><span class="mc-ico">🧑</span><span class="mc-name">${c}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>`;
-  if (mediaTab === 2) return `<div class="card-grid">${VEHICLE_LIST.map(v =>
-    `<div class="mini-card clickable" data-prop="${v[0]}|${v[1]}"><span class="mc-ico">${v[0]}</span><span class="mc-name">${v[1]}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>`;
-  if (mediaTab === 3) return `<div class="card-grid">${ANIMAL_LIST.map(v =>
-    `<div class="mini-card clickable" data-prop="${v[0]}|${v[1]}"><span class="mc-ico">${v[0]}</span><span class="mc-name">${v[1]}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>`;
-  if (mediaTab === 4) return `<div class="card-grid">${PROP_LIST.map(v =>
-    `<div class="mini-card clickable" data-prop="${v[0]}|${v[1]}"><span class="mc-ico">${v[0]}</span><span class="mc-name">${v[1]}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>`;
+    `<div class="mini-card clickable" data-char="${c}"><span class="mc-ico">🧑</span><span class="mc-name">${c}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}
+    ${libraryItems.filter(i => i.kind === "character").map(i => libCard(i, "char", "+ Add to canvas")).join("")}</div>`;
+  if (mediaTab === 2) return `<div class="card-grid">${VEHICLE_LIST.map(propCard).join("")}</div>`;
+  if (mediaTab === 3) return `<div class="card-grid">${ANIMAL_LIST.map(propCard).join("")}</div>`;
+  if (mediaTab === 4) return `<div class="card-grid">${PROP_LIST.map(propCard).join("")}
+    ${libraryItems.filter(i => i.kind === "prop").map(i => libCard(i, "prop", "+ Add to canvas")).join("")}</div>`;
   if (mediaTab === 5) return `<button class="btn btn-accent panel-btn" id="mediaSoundsBtn" type="button">Open Sounds — BGM, SFX &amp; Voice</button>`;
   return `<label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">Upload Your Image
     <input type="file" accept="image/*" data-upload hidden></label>
@@ -711,38 +920,67 @@ const PANELS = {
     <button class="btn btn-panel panel-btn" data-pro type="button">New from Character Studio</button>
     ${note("The full library holds 45 characters — the owner adds more over time. Creating and editing characters is a Pro feature.")}`,
   media: () => `<h4>Media</h4>${chips(MEDIA_TABS, mediaTab)}${mediaGrid()}`,
-  effect: () => `<h4>Effect</h4>
-    <p class="panel-sub"><strong>Natural River &amp; Rain Studio</strong></p>
-    <button class="btn btn-accent panel-btn" data-soon="River generator" type="button">Generate River</button>
-    <label class="slider-row">River type <input type="range" min="0" max="100" value="40"></label>
-    <label class="slider-row">Flow speed <input type="range" min="0" max="100" value="50"></label>
-    <label class="slider-row">Width <input type="range" min="0" max="100" value="60"></label>
-    <label class="slider-row">Angle <input type="range" min="0" max="100" value="30"></label>
-    <label class="slider-row">Rain intensity <input type="range" min="0" max="100" value="55"></label>
-    <label class="slider-row">Rain speed <input type="range" min="0" max="100" value="50"></label>
-    <label class="slider-row">Wind <input type="range" min="0" max="100" value="20"></label>
-    <label class="slider-row">Opacity <input type="range" min="0" max="100" value="80"></label>
-    <button class="btn btn-panel panel-btn" data-soon="Thunder" type="button">Thunder</button>
-    <button class="btn btn-panel panel-btn" data-soon="Camera shake" type="button">Camera Shake</button>
-    <button class="btn btn-panel panel-btn" data-soon="Rain sound test" type="button">Test Rain Sound</button>
-    ${note("The live effects engine switches on in the tools update — the full control set is already here.")}`,
+  effect: () => {
+    const fx = scene().fx || {};
+    const rv = fx.river || { flow: 50, width: 60, angle: 50, color1: "#57b7d9", color2: "#2e6da0" };
+    const rn = fx.rain || { intensity: 55, speed: 50, wind: 20, opacity: 80, splash: true };
+    return `<h4>Effect</h4>
+    <p class="panel-sub"><strong>Natural River &amp; Rain Studio</strong> — effects play live on your canvas, in this scene.</p>
+    <button class="btn ${fx.river ? "btn-panel" : "btn-accent"} panel-btn" id="fxRiverBtn" type="button">${fx.river ? "Remove River" : "Generate River"}</button>
+    <label class="slider-row">River type
+      <select id="rvType" class="fx-select">
+        <option value="stream">Stream</option><option value="river" selected>River</option><option value="rapids">Rapids</option>
+      </select></label>
+    <label class="slider-row">Flow speed <input type="range" id="rvFlow" min="0" max="100" value="${rv.flow}"></label>
+    <label class="slider-row">Width <input type="range" id="rvWidth" min="0" max="100" value="${rv.width}"></label>
+    <label class="slider-row">Angle <input type="range" id="rvAngle" min="0" max="100" value="${rv.angle}"></label>
+    <div class="field-row">
+      <label class="slider-row">Water colour <input type="color" id="rvColor1" value="${rv.color1}"></label>
+      <label class="slider-row">Deep colour <input type="color" id="rvColor2" value="${rv.color2}"></label>
+    </div>
+    <button class="btn ${fx.rain ? "btn-panel" : "btn-accent"} panel-btn" id="fxRainBtn" type="button" style="margin-top:14px">${fx.rain ? "Stop Rain" : "Start Rain"}</button>
+    <label class="slider-row">Rain intensity (drop count) <input type="range" id="rnIntensity" min="0" max="100" value="${rn.intensity}"></label>
+    <label class="slider-row">Rain speed <input type="range" id="rnSpeed" min="0" max="100" value="${rn.speed}"></label>
+    <label class="slider-row">Wind <input type="range" id="rnWind" min="0" max="100" value="${rn.wind}"></label>
+    <label class="slider-row">Opacity <input type="range" id="rnOpacity" min="0" max="100" value="${rn.opacity}"></label>
+    <label class="slider-row" style="display:flex;align-items:center;gap:8px">Splashes <input type="checkbox" id="rnSplash" ${rn.splash ? "checked" : ""} style="width:auto"></label>
+    <button class="btn btn-panel panel-btn" id="fxThunderBtn" type="button">${fx.thunder ? "Thunder: On" : "Thunder"}</button>
+    <label class="slider-row">Camera shake <input type="range" id="fxShake" min="0" max="100" value="${fx.shake || 0}"></label>
+    <button class="btn btn-panel panel-btn" id="fxSoundBtn" type="button">Test Rain Sound</button>
+    ${note("Effects belong to this scene — switch scenes to give each one its own weather.")}`;
+  },
   studio: () => `<h4>Studio</h4>
     <p class="panel-sub">The main Studio is where characters are built and rigged in Easy Mode and Advanced Mode.</p>
     <div class="mini-card"><span class="mc-ico">🎬</span><span class="mc-name">Upgrade your plan to access the Studio</span></div>
     <button class="btn btn-accent panel-btn" data-pro type="button">Get Pro</button>
     ${note("Pro members open the full Studio: character creation, editing and rigging.")}`,
   assets: () => `<h4>Asset Library</h4>
-    <p class="panel-sub">Props for your scenes — tap to add. The owner adds new assets over time.</p>
-    <div class="card-grid">${PROP_LIST.map(v =>
-      `<div class="mini-card clickable" data-prop="${v[0]}|${v[1]}"><span class="mc-ico">${v[0]}</span><span class="mc-name">${v[1]}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>
-    <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Upload
-      <input type="file" accept="image/*" data-upload hidden></label>
-    <button class="btn btn-accent panel-btn" id="sendEraserBtn" type="button">Send Image to Eraser</button>`,
+    <p class="panel-sub">49 props for your scenes — tap to add. 🔒 Pro assets unlock with a plan.</p>
+    ${libraryItems.length ? `<p class="panel-sub"><strong>Owner's library</strong> — also under Media, by kind.</p>
+    <div class="card-grid">${libraryItems.map(i => libCard(i, i.kind === "background" ? "bg" : i.kind, i.kind === "background" ? "Set as background" : "+ Add to canvas")).join("")}</div>` : ""}
+    <div class="card-grid">${PROP_LIST.map(propCard).join("")}</div>
+    <button class="btn btn-accent panel-btn" id="sendEraserBtn" type="button">Send Image to Eraser</button>
+    <details class="lib-manager">
+      <summary>Owner Library — add your own assets</summary>
+      <label class="field">Asset image <input type="file" id="libFile" accept="image/*"></label>
+      <label class="field">Name <input type="text" id="libName" placeholder="e.g. Red Bicycle"></label>
+      <div class="field-row">
+        <label class="field">Kind
+          <select id="libKind"><option value="prop">Prop</option><option value="background">Background</option><option value="character">Character</option></select></label>
+        <label class="field">Access
+          <select id="libPlan"><option value="free">Free</option><option value="pro">Pro (locked)</option></select></label>
+      </div>
+      <button class="btn btn-accent panel-btn" id="libAddBtn" type="button">Add to Library</button>
+      <button class="btn btn-panel panel-btn" id="libBackupBtn" type="button">Download Library Backup</button>
+      <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Import Library Backup
+        <input type="file" id="libImport" accept="application/json" hidden></label>
+      ${note("Owner uploads are stored in this browser for now; cloud storage (Phase F) will carry them to every visitor. Use the backup file to keep them safe and move them later.")}
+    </details>`,
   sprite: () => `<h4>Sprite Sheet</h4>
-    <p class="panel-sub">Ready animation packs — 6 images each.</p>
-    ${SPRITES.map(s => `<div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🐾</span><span class="mc-name">${s}</span>
-      <button class="btn btn-panel panel-btn" data-soon="Sprite pack" type="button">Add to Timeline</button></div>`).join("")}
-    ${note("Sprite packs arrive with the asset library update.")}`,
+    <p class="panel-sub">Ready animation packs — 6 frames each. Add one, press Play, and it moves; keyframes can carry it across the scene.</p>
+    ${[["bird", "Bird Fly"], ["walkers", "Boy and Girl Walking"], ["boy", "Boy Walking"], ["dog", "Dog Walk"], ["girl", "Girl Walk"], ["cat", "Cat Walk"]].map(s =>
+      `<div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🐾</span><span class="mc-name">${s[1]}</span>
+      <button class="btn btn-panel panel-btn" data-sprite="${s[0]}|${s[1]}" type="button">Add to Timeline</button></div>`).join("")}`,
   sounds: () => `<h4>Sounds</h4>
     ${chips(["All", "BGM", "SFX", "Voice"], 3)}
     <div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🎵</span><span class="mc-name">Background Music &amp; Effects</span>
@@ -792,8 +1030,29 @@ function wirePanel() {
     setNote("Background set for this scene.");
   }));
   $$("[data-prop]", panel).forEach(c => c.addEventListener("click", () => {
-    const [emoji, name] = c.dataset.prop.split("|"); addProp(emoji, name);
+    const [emoji, name, pro] = c.dataset.prop.split("|");
+    if (pro === "1") { setNote(`“${name}” is a Pro asset — members unlock the full library.`); openPro(); return; }
+    addProp(emoji, name);
   }));
+  $$("[data-lib]", panel).forEach(c => c.addEventListener("click", async () => {
+    const [action, id] = c.dataset.lib.split("|");
+    const it = libraryItems.find(x => x.id === id);
+    if (!it) return;
+    if (it.pro) { setNote(`“${it.name}” is a Pro asset — members unlock the full library.`); openPro(); return; }
+    if (action === "bg") {
+      scene().bgAsset = it.assetId; pushHistory(); drawStage();
+      setNote(`“${it.name}” is now this scene's background.`);
+    } else {
+      const rec = await idbGet("assets", it.assetId);
+      if (rec && rec.blob) addImageFile(rec.blob).catch(() => {});
+      else setNote("That asset could not be loaded.");
+    }
+  }));
+  $$("[data-sprite]", panel).forEach(c => c.addEventListener("click", () => {
+    const [kind, name] = c.dataset.sprite.split("|"); addSpritePack(kind, name);
+  }));
+  wireLibrary();
+  wireFx();
   $$("[data-upload]", panel).forEach(inp => inp.addEventListener("change", () => {
     const f = inp.files && inp.files[0]; if (f) addImageFile(f).catch(() => setNote("That image could not be added."));
   }));
@@ -828,6 +1087,124 @@ function wirePanel() {
     const f = au.files && au.files[0]; if (!f) return;
     $("#audioOut").innerHTML = `<audio controls src="${URL.createObjectURL(f)}" style="width:100%;margin-top:10px"></audio>`;
     await attachVoice(f, f.name);
+  });
+}
+/* ---------------- Owner library ---------------- */
+let libraryItems = [];
+async function loadLibrary() {
+  try { libraryItems = await idbAll("library"); } catch { libraryItems = []; }
+}
+function blobToDataURL(blob) {
+  return new Promise((res) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => res(null);
+    r.readAsDataURL(blob);
+  });
+}
+function wireLibrary() {
+  const addBtn = $("#libAddBtn");
+  if (!addBtn) return;
+  addBtn.addEventListener("click", async () => {
+    const f = $("#libFile").files && $("#libFile").files[0];
+    if (!f) { setNote("Choose an image first, then add it to the library."); return; }
+    const assetId = nid("as");
+    await idbPut("assets", { id: assetId, blob: f, name: f.name, at: Date.now() });
+    await idbPut("library", {
+      id: nid("lib"), kind: $("#libKind").value,
+      name: $("#libName").value.trim() || f.name,
+      pro: $("#libPlan").value === "pro", assetId, blob: f, at: Date.now()
+    });
+    await loadLibrary();
+    selectTool("assets");
+    setNote("Added to the owner's library — find it in the Asset Library and under Media.");
+  });
+  $("#libBackupBtn").addEventListener("click", async () => {
+    const items = [];
+    for (const it of libraryItems) {
+      const rec = await idbGet("assets", it.assetId);
+      const blob = (rec && rec.blob) || it.blob;
+      if (blob) items.push({ kind: it.kind, name: it.name, pro: !!it.pro, dataUrl: await blobToDataURL(blob) });
+    }
+    const out = new Blob([JSON.stringify({ app: "Ss Animation", v: 1, items }, null, 1)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(out);
+    a.download = "ss-animation-library-backup.json";
+    a.click();
+    setNote(`Library backup downloaded (${items.length} asset(s)).`);
+  });
+  $("#libImport").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      let n = 0;
+      for (const it of data.items || []) {
+        if (!it.dataUrl) continue;
+        const blob = await (await fetch(it.dataUrl)).blob();
+        const assetId = nid("as");
+        await idbPut("assets", { id: assetId, blob, name: it.name, at: Date.now() });
+        await idbPut("library", { id: nid("lib"), kind: it.kind || "prop", name: it.name || "Asset", pro: !!it.pro, assetId, blob, at: Date.now() });
+        n++;
+      }
+      await loadLibrary();
+      selectTool("assets");
+      setNote(`Imported ${n} asset(s) into the owner's library.`);
+    } catch { setNote("That backup file could not be read."); }
+  });
+}
+/* ---------------- Effects wiring ---------------- */
+function wireFx() {
+  if (!$("#fxRiverBtn")) return;
+  const fxGet = () => { scene().fx = scene().fx || {}; return scene().fx; };
+  const upd = (hist) => { drawStage(); ensureFxLoop(); if (hist) pushHistory(); };
+  $("#fxRiverBtn").addEventListener("click", () => {
+    const fx = fxGet();
+    fx.river = fx.river ? null : { flow: +$("#rvFlow").value, width: +$("#rvWidth").value, angle: +$("#rvAngle").value, color1: $("#rvColor1").value, color2: $("#rvColor2").value };
+    pushHistory(); selectTool("effect"); upd(false);
+    setNote(fx.river ? "River is flowing in this scene." : "River removed.");
+  });
+  const rvUpd = () => {
+    const fx = fxGet(); if (!fx.river) return;
+    fx.river = { flow: +$("#rvFlow").value, width: +$("#rvWidth").value, angle: +$("#rvAngle").value, color1: $("#rvColor1").value, color2: $("#rvColor2").value };
+    upd(false);
+  };
+  ["rvFlow", "rvWidth", "rvAngle", "rvColor1", "rvColor2", "rvType"].forEach(id => {
+    const el = $("#" + id);
+    el.addEventListener("input", rvUpd);
+    el.addEventListener("change", () => pushHistory());
+  });
+  $("#fxRainBtn").addEventListener("click", () => {
+    const fx = fxGet();
+    fx.rain = fx.rain ? null : { intensity: +$("#rnIntensity").value, speed: +$("#rnSpeed").value, wind: +$("#rnWind").value, opacity: +$("#rnOpacity").value, splash: $("#rnSplash").checked };
+    if (!fx.rain) setRainSound(false, 0);
+    pushHistory(); selectTool("effect"); upd(false);
+    setNote(fx.rain ? "Rain is falling in this scene." : "Rain stopped.");
+  });
+  const rnUpd = () => {
+    const fx = fxGet(); if (!fx.rain) return;
+    fx.rain = { intensity: +$("#rnIntensity").value, speed: +$("#rnSpeed").value, wind: +$("#rnWind").value, opacity: +$("#rnOpacity").value, splash: $("#rnSplash").checked };
+    upd(false);
+  };
+  ["rnIntensity", "rnSpeed", "rnWind", "rnOpacity", "rnSplash"].forEach(id => {
+    const el = $("#" + id);
+    el.addEventListener("input", rnUpd);
+    el.addEventListener("change", () => pushHistory());
+  });
+  $("#fxThunderBtn").addEventListener("click", () => {
+    const fx = fxGet();
+    fx.thunder = !fx.thunder;
+    pushHistory(); selectTool("effect"); upd(false);
+    setNote(fx.thunder ? "Thunder is on — watch for lightning." : "Thunder off.");
+  });
+  const shakeEl = $("#fxShake");
+  shakeEl.addEventListener("input", () => { fxGet().shake = +shakeEl.value; upd(false); });
+  shakeEl.addEventListener("change", () => pushHistory());
+  let soundOn = false;
+  $("#fxSoundBtn").addEventListener("click", (e) => {
+    soundOn = !soundOn;
+    setRainSound(soundOn, fxGet().rain ? fxGet().rain.intensity : 55);
+    e.currentTarget.textContent = soundOn ? "Stop Rain Sound" : "Test Rain Sound";
   });
 }
 function selectTool(id) {
@@ -952,8 +1329,10 @@ $("#createProjBtn").addEventListener("click", newProject);
 $("#projSearch").addEventListener("input", (e) => renderDashboard(e.target.value));
 
 /* ---------------- Init + PWA ---------------- */
+loadLibrary();
 selectTool("character");
 renderDashboard("");
+ensureFxLoop();
 renderScenes(); renderTracks(); drawStage(); pushHistory();
 (async () => {
   try {

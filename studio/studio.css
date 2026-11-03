@@ -216,3 +216,11 @@ input[type="color"] { background: var(--panel-2); border: 1px solid var(--line);
   .dash-proj-tools { justify-content: stretch; }
   .dash-proj-tools input[type="search"] { flex: 1; min-width: 0; }
 }
+
+/* ---------- Phase C: locks, owner library, effects ---------- */
+.lock-tag { display: inline-block; background: #333; color: var(--accent); font-size: 10.5px; font-weight: 800; border-radius: 5px; padding: 2px 7px; margin-top: 6px; letter-spacing: .4px; }
+.lib-thumb { width: 100%; height: 64px; object-fit: cover; border-radius: 7px; display: block; margin-bottom: 7px; background: var(--panel); }
+.lib-manager { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; }
+.lib-manager summary { cursor: pointer; font-weight: 700; font-size: 14.5px; color: var(--accent); }
+.lib-manager .field input[type="file"] { padding: 7px; }
+.fx-select { display: block; width: 100%; margin-top: 5px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 8px 10px; font: inherit; font-size: 14px; }
