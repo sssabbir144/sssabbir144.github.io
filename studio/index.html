@@ -20,12 +20,63 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=5">
+<link rel="stylesheet" href="studio.css?v=6">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
 </head>
 <body class="studio-body">
+
+<!-- ============ LOGIN LANDING (entrance) ============ -->
+<div class="login-gate" id="loginGate" role="dialog" aria-modal="true" aria-label="Welcome to Ss Animation">
+  <svg class="login-art" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs><linearGradient id="lsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d3f0e0"/><stop offset="1" stop-color="#79c7ae"/></linearGradient></defs>
+    <rect width="1200" height="800" fill="url(#lsky)"/>
+    <g fill="#ffffff" opacity=".55"><ellipse cx="200" cy="120" rx="120" ry="26"/><ellipse cx="880" cy="90" rx="150" ry="30"/><ellipse cx="1060" cy="200" rx="90" ry="20"/></g>
+    <path d="M0 520 Q 300 420 620 500 T 1200 470 V800 H0 Z" fill="#9fd3c0"/>
+    <path d="M0 600 Q 360 520 760 590 T 1200 570 V800 H0 Z" fill="#5fae8d"/>
+    <rect y="700" width="1200" height="100" fill="#175c40"/>
+    <ellipse cx="60" cy="690" rx="90" ry="110" fill="#1e6e52"/>
+    <ellipse cx="1150" cy="680" rx="100" ry="120" fill="#1e6e52"/>
+    <g stroke="#173f35" stroke-width="11" fill="none" stroke-linecap="round">
+      <circle cx="330" cy="648" r="98"/>
+      <circle cx="886" cy="648" r="98"/>
+      <path d="M330 648 L545 520 L612 634 L886 648 M545 520 L612 634 M545 520 L806 548 L886 648 M612 634 L806 548" stroke="#1d5c46"/>
+    </g>
+    <rect x="516" y="498" width="66" height="15" rx="7" fill="#F5C518"/>
+    <path d="M792 528 L826 512" stroke="#F5C518" stroke-width="12" stroke-linecap="round"/>
+    <g>
+      <path d="M566 452 L616 622" stroke="#14707c" stroke-width="27" stroke-linecap="round"/>
+      <path d="M566 452 L498 606" stroke="#0f5d68" stroke-width="27" stroke-linecap="round"/>
+      <ellipse cx="622" cy="630" rx="24" ry="11" fill="#5d3436"/>
+      <ellipse cx="492" cy="614" rx="24" ry="11" fill="#5d3436"/>
+      <path d="M520 330 Q 600 312 622 372 L606 478 Q 556 492 522 462 Z" fill="#e8913a"/>
+      <path d="M520 330 Q 486 420 500 500 L540 470 Q 528 400 540 344 Z" fill="#14b8a6"/>
+      <path d="M540 356 Q 486 386 452 372" stroke="#f2c094" stroke-width="21" stroke-linecap="round" fill="none"/>
+      <circle cx="444" cy="370" r="14" fill="#f2c094"/>
+      <path d="M436 366 L424 342" stroke="#f2c094" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="586" cy="252" r="44" fill="#f2c094"/>
+      <path d="M628 248 Q 640 256 628 266" fill="#f2c094"/>
+      <path d="M548 236 Q 540 196 580 188 L 574 206 Q 604 184 614 204 L 622 190 Q 634 214 624 232 Q 646 226 640 246 Q 610 224 580 228 Q 556 232 548 236 Z" fill="#4a2c1a"/>
+      <circle cx="600" cy="250" r="4.5" fill="#26221f"/>
+      <path d="M606 268 Q 616 274 624 266" stroke="#26221f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <circle cx="580" cy="268" r="8" fill="rgba(240,120,110,.5)"/>
+    </g>
+  </svg>
+  <div class="login-shade"></div>
+  <div class="login-content">
+    <span class="login-badge">⚡ 5x Faster Channel Growth</span>
+    <div class="login-bottom">
+      <h1 class="login-title"><span class="login-title-accent">Ss</span> Animation</h1>
+      <p class="login-tagline">Best AI Animation Tool for YouTubers</p>
+      <p class="login-desc">Create stunning cartoon stories with AI. Generate characters, backgrounds, and voices automatically.</p>
+      <button class="google-btn" id="googleGateBtn" type="button">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.2H12v4.3h6.5c-.1 1.1-.8 2.7-2.4 3.8l3.7 2.9c2.3-2.1 3.7-5.2 3.7-8.8z"/><path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.7-2.9c-1 .7-2.4 1.2-4.2 1.2-3.2 0-5.9-2.1-6.8-5l-3.9 3C3.3 21.3 7.3 24 12 24z"/><path fill="#FBBC05" d="M5.2 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4l-3.9-3C.5 8.2 0 10 0 12s.5 3.8 1.3 5.4l3.9-3z"/><path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.3 0 3.3 2.7 1.3 6.6l3.9 3c.9-2.8 3.6-4.9 6.8-4.9z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ============ LANDING ============ -->
 <header class="nav" id="siteNav">
@@ -412,6 +463,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=5"></script>
+<script src="studio.js?v=6"></script>
 </body>
 </html>

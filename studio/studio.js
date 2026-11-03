@@ -1328,6 +1328,19 @@ $("#newProjBtn").addEventListener("click", newProject);
 $("#createProjBtn").addEventListener("click", newProject);
 $("#projSearch").addEventListener("input", (e) => renderDashboard(e.target.value));
 
+/* ---------------- Login landing (entrance) ----------------
+   Interface now; real Google sign-in activates with Firebase (Phase F).
+   Until then the button enters the studio without blocking anyone. */
+document.body.classList.add("gate-open");
+$("#googleGateBtn").addEventListener("click", () => {
+  const gate = $("#loginGate");
+  gate.classList.add("hide");
+  document.body.classList.remove("gate-open");
+  setTimeout(() => { gate.style.display = "none"; }, 480);
+  $("#dashboard").scrollIntoView({ behavior: "smooth" });
+  setNote("Welcome to Ss Animation! Google sign-in switches on with accounts (Phase F) — the studio is open, start creating.");
+});
+
 /* ---------------- Init + PWA ---------------- */
 loadLibrary();
 selectTool("character");

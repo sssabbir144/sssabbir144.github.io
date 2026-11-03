@@ -224,3 +224,28 @@ input[type="color"] { background: var(--panel-2); border: 1px solid var(--line);
 .lib-manager summary { cursor: pointer; font-weight: 700; font-size: 14.5px; color: var(--accent); }
 .lib-manager .field input[type="file"] { padding: 7px; }
 .fx-select { display: block; width: 100%; margin-top: 5px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 8px 10px; font: inherit; font-size: 14px; }
+
+/* ---------- Login landing (entrance gate) ---------- */
+.login-gate { position: fixed; inset: 0; z-index: 120; overflow: hidden; background: #0b2e24;
+  transition: opacity .45s ease; }
+.login-gate.hide { opacity: 0; pointer-events: none; }
+.login-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.login-shade { position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(6,24,20,0) 42%, rgba(6,24,20,.55) 68%, rgba(4,16,14,.92) 100%); }
+.login-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column;
+  align-items: center; text-align: center; padding: 9vh 20px 6vh; box-sizing: border-box; }
+.login-badge { background: rgba(10,26,22,.85); color: var(--accent); border: 1px solid rgba(245,197,24,.35);
+  font-weight: 700; font-size: 14.5px; padding: 9px 20px; border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.login-bottom { margin-top: auto; max-width: 560px; width: 100%; }
+.login-title { font-size: clamp(40px, 8.5vw, 62px); font-weight: 800; color: #fff; margin: 0 0 8px;
+  letter-spacing: .5px; text-shadow: 0 3px 22px rgba(0,0,0,.45); }
+.login-title-accent { color: var(--accent); }
+.login-tagline { color: var(--accent); font-weight: 700; font-size: clamp(16px, 3.4vw, 20px); margin: 0 0 12px; }
+.login-desc { color: #eef4f1; font-size: clamp(14.5px, 2.8vw, 17px); line-height: 1.6; margin: 0 auto 26px; max-width: 480px; }
+.google-btn { background: #fff; color: #1f2328; border: 0; border-radius: 999px; cursor: pointer;
+  font: inherit; font-weight: 700; font-size: 17px; padding: 16px 34px;
+  display: inline-flex; align-items: center; gap: 12px; width: min(100%, 430px); justify-content: center;
+  box-shadow: 0 14px 34px rgba(0,0,0,.4); }
+.google-btn:hover { background: var(--accent); }
+body.gate-open { overflow: hidden; }
