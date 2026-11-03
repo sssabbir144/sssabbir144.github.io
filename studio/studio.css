@@ -318,8 +318,6 @@ body.gate-open { overflow: hidden; }
 .pc-thumb { position: relative; aspect-ratio: 16/9; background: #0a0a0a; }
 .pc-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pc-ph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 40px; background: linear-gradient(135deg, #1d2b1d, #101010 60%); }
-.pc-del { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: rgba(10,10,10,.72); color: #fff; cursor: pointer; font-size: 13px; line-height: 1; }
-.pc-del:hover { background: #000; border-color: var(--accent); color: var(--accent); }
 .pc-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .pc-tags { display: flex; gap: 7px; align-items: center; }
 .pc-tag { font-size: 10px; font-weight: 700; letter-spacing: 1.1px; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; }
@@ -329,3 +327,5 @@ body.gate-open { overflow: hidden; }
 .pc-open { margin-top: auto; width: 100%; }
 @media (max-width: 980px) { .dash-layout { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { #projList { grid-template-columns: 1fr; } }
+
+.dash-tb-actions { display: inline-flex; gap: 9px; align-items: center; margin-left: auto; margin-right: 10px; }

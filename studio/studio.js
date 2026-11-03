@@ -1991,8 +1991,8 @@ function projCardHTML(p, opts) {
   const thumb = p.thumb
     ? `<img src="${p.thumb}" alt="">`
     : `<span class="pc-ph">🎞</span>`;
-  const sub = opts.cloud ? `<p class="pc-meta">☁️ Cloud backup · Updated ${agoTxt(p.savedAt)}</p>` : `<p class="pc-meta">Updated ${agoTxt(p.savedAt)}</p>`;
-  return `<div class="pc-thumb">${thumb}<button class="pc-del" data-del="${opts.attr}" type="button" title="Delete this project">✕</button></div>
+  const sub = `<p class="pc-meta">Updated ${agoTxt(p.savedAt)}</p>`;
+  return `<div class="pc-thumb">${thumb}</div>
     <div class="pc-body">
       <div class="pc-tags"><span class="pc-tag">EASY MODE</span>${active}</div>
       <h4 class="pc-name"></h4>
@@ -2018,7 +2018,6 @@ async function renderDashboard(filter) {
     card.innerHTML = projCardHTML(p, { active: (p.savedAt || 0) === dashNewestTs && dashNewestTs > 0, attr: "", tracks: trackCount(p), cloud: false });
     card.querySelector(".pc-name").textContent = p.name;
     card.querySelector("[data-open]").dataset.dashOpen = p.name;
-    card.querySelector("[data-del]").dataset.dashDel = p.name;
     return card.outerHTML;
   }).join("")
     + (f && !shown.length && all.length ? `<p class="panel-note">No projects match “${filter}”.</p>` : "");
@@ -2027,12 +2026,6 @@ async function renderDashboard(filter) {
       $("#studioApp").scrollIntoView({ behavior: "smooth" });
       setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
     }
-  }));
-  $$("[data-dash-del]", listEl).forEach(b => b.addEventListener("click", () => {
-    pendingDelName = b.dataset.dashDel;
-    pendingDelScope = "local";
-    $("#delText").textContent = `Delete “${pendingDelName}” from this browser and your cloud backup? This cannot be undone.`;
-    openModal("#delModal");
   }));
   appendCloudProjects(listEl, new Set(all.map(p => p.name)), filter);
 }
@@ -2048,6 +2041,7 @@ function newProject() {
 }
 $("#payNowBtn").addEventListener("click", () => openPro());
 const msb = $("#manageSubBtn"); if (msb) msb.addEventListener("click", () => openPro());
+const dpb = $("#dashPayBtn"); if (dpb) dpb.addEventListener("click", () => openPro());
 const dlb = $("#dashLogoutBtn"); if (dlb) dlb.addEventListener("click", () => { signOutUser(); });
 $("#powerBtn").addEventListener("click", () => { signOutUser(); });
 $("#delConfirmBtn").addEventListener("click", async () => {
@@ -2302,14 +2296,7 @@ async function appendCloudProjects(listEl, localNames, filter) {
       if (isNewest) { dashNewestTs = p.savedAt || 0; listEl.querySelectorAll(".pc-active").forEach(e => e.remove()); }
       row.innerHTML = projCardHTML({ thumb: p.thumb || null, savedAt: p.savedAt }, { active: isNewest, attr: "", tracks, cloud: true });
       row.querySelector("[data-open]").classList.add("cloud-open");
-      row.querySelector("[data-del]").classList.add("cloud-del");
       row.querySelector(".pi-name").textContent = p.name;
-      row.querySelector(".cloud-del").addEventListener("click", () => {
-        pendingDelName = p.name;
-        pendingDelScope = "cloud";
-        $("#delText").textContent = `Delete the cloud backup of “${p.name}”? This cannot be undone.`;
-        openModal("#delModal");
-      });
       row.querySelector(".cloud-open").addEventListener("click", async () => {
         try {
           const rec = JSON.parse(p.data);
@@ -2360,23 +2347,24 @@ window.addEventListener("appinstalled", () => {
 });
 let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault(); deferredPrompt = e; $("#installBtn").hidden = false;
+  e.preventDefault(); deferredPrompt = e;
+  $$(".install-btn").forEach(b => { b.hidden = false; });
 });
-$("#installBtn").addEventListener("click", async () => {
+$$(".install-btn").forEach(btn => btn.addEventListener("click", async () => {
   if (!deferredPrompt) {
-    const b = $("#installBtn");
-    if (b && !b.dataset.hint) {
-      b.dataset.hint = "1";
-      const old = b.textContent;
-      b.textContent = "Browser menu → Add to Home Screen";
-      setTimeout(() => { b.textContent = old; delete b.dataset.hint; }, 3400);
+    if (btn && !btn.dataset.hint) {
+      btn.dataset.hint = "1";
+      const old = btn.textContent;
+      btn.textContent = "Browser menu → Add to Home Screen";
+      setTimeout(() => { btn.textContent = old; delete btn.dataset.hint; }, 3400);
     }
     return;
   }
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
-  deferredPrompt = null; $("#installBtn").hidden = true;
-});
+  deferredPrompt = null;
+  $$(".install-btn").forEach(b => { b.hidden = true; });
+}));
 
 /* Dashboard cover: fade the still out once the banner clip is playing;
    keep the still as the fallback (video error / reduced motion). */

@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=17">
+<link rel="stylesheet" href="studio.css?v=18">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -53,7 +53,7 @@
       <a href="../coloring-pages.html">Coloring Pages</a>
     </nav>
     <div class="nav-icons">
-      <button class="btn btn-accent" id="installBtn" hidden>Install App</button>
+      <button class="btn btn-accent install-btn" id="installBtn" hidden>Install App</button>
       <a class="btn btn-accent" href="#studioApp">Open the Studio</a>
     </div>
   </div>
@@ -63,6 +63,10 @@
   <section class="dash-wrap" id="dashboard" aria-label="Your studio dashboard">
     <div class="dash-topbar">
       <div class="dash-brand"><img class="dash-logo" src="logo-badge.png?v=2" alt="Ss Animation logo"><span><span class="dash-brand-accent">Ss</span> Animation</span></div>
+      <span class="dash-tb-actions">
+        <button class="btn btn-accent" id="dashPayBtn" type="button">Pay Now</button>
+        <button class="btn btn-panel install-btn" id="dashInstallBtn" type="button" hidden>Install App</button>
+      </span>
       <button class="dash-power" id="powerBtn" type="button" aria-label="Sign out" title="Sign out">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.5a8 8 0 1 0 11.4 0"/></svg>
       </button>
@@ -492,6 +496,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=18"></script>
+<script src="studio.js?v=19"></script>
 </body>
 </html>
