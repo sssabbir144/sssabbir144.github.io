@@ -1268,14 +1268,15 @@ function wireIk() {
   if (!$("#ikArm")) return;
   const bind = (id, key) => {
     const el = $("#" + id);
-    el.addEventListener("input", () => {
+    const apply = () => {
       const o = selObj();
       if (!o || o.type !== "char") { setNote("Select a character on the canvas first — IK poses characters."); return; }
       o.pose = o.pose || { arm: 0, leg: 0, head: 0, lean: 0 };
       o.pose[key] = +el.value;
       drawStage();
-    });
-    el.addEventListener("change", () => pushHistory());
+    };
+    el.addEventListener("input", apply);
+    el.addEventListener("change", () => { apply(); pushHistory(); });
   };
   bind("ikArm", "arm"); bind("ikLeg", "leg"); bind("ikHead", "head"); bind("ikLean", "lean");
   $("#ikOutlineBtn").addEventListener("click", () => {
