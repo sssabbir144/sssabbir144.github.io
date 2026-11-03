@@ -590,16 +590,18 @@ function addProp(emoji, name) {
   setNote(`${name} added to the scene.`);
 }
 async function addImageFile(file) {
+  if (!file.name) { try { file = new File([file], "image.png", { type: file.type || "image/png" }); } catch { /* fname below still covers the note */ } }
+  const fname = file.name || "Image";
   const assetId = nid("as");
   let stored = true;
-  try { await idbPut("assets", { id: assetId, blob: file, name: file.name, at: Date.now() }); }
+  try { await idbPut("assets", { id: assetId, blob: file, name: fname, at: Date.now() }); }
   catch { stored = false; memBlobs[assetId] = file; }
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
     const w = 430, h = Math.round(430 * img.naturalHeight / img.naturalWidth);
-    addObject({ type: "image", name: file.name, assetId, w, h, x: 640, y: 380, scale: 1, rot: 0, flip: false, op: 1 });
-    setNote(stored ? `“${file.name}” is on your canvas.` : `“${file.name}” is on your canvas — kept for this session only, browser storage was unavailable.`);
+    addObject({ type: "image", name: fname, assetId, w, h, x: 640, y: 380, scale: 1, rot: 0, flip: false, op: 1 });
+    setNote(stored ? `“${fname}” is on your canvas.` : `“${fname}” is on your canvas — kept for this session only, browser storage was unavailable.`);
   };
   img.src = url;
 }
@@ -1437,8 +1439,8 @@ function wireFx() {
     setNote(fx.thunder ? "Thunder is on — watch for lightning." : "Thunder off.");
   });
   const shakeEl = $("#fxShake");
-  shakeEl.addEventListener("input", () => { fxGet().shake = +shakeEl.value; upd(false); });
-  shakeEl.addEventListener("change", () => { pushHistory(); setNote(+shakeEl.value > 0 ? `Camera shake on — intensity ${shakeEl.value}.` : "Camera shake off."); });
+  shakeEl.addEventListener("input", () => { fxGet().shake = +shakeEl.value; upd(false); setNote(+shakeEl.value > 0 ? `Camera shake on — intensity ${shakeEl.value}.` : "Camera shake off."); });
+  shakeEl.addEventListener("change", () => { pushHistory(); });
   let soundOn = false;
   $("#fxSoundBtn").addEventListener("click", (e) => {
     soundOn = !soundOn;
@@ -1954,7 +1956,7 @@ $("#sendToStudioBtn").addEventListener("click", () => {
   if (!er.has) { $("#eraserOverlay").hidden = true; return; }
   $("#erCanvas").toBlob(async (b) => {
     $("#eraserOverlay").hidden = true;
-    await addImageFile(b);
+    if (b) await addImageFile(new File([b], "erased-image.png", { type: "image/png" }));
     setNote("Edited image sent to the Studio canvas.");
   }, "image/png");
 });
@@ -2007,6 +2009,17 @@ function newProject() {
 }
 $("#payNowBtn").addEventListener("click", () => openPro());
 $("#powerBtn").addEventListener("click", () => { signOutUser(); });
+/* Account menu on the dashboard avatar (owner's order): tap avatar → name + email + Sign out */
+(() => {
+  const av = $("#dashAvatar"), menu = $("#acctMenu"), out = $("#acctSignOutBtn");
+  if (!av || !menu) return;
+  const toggle = (show) => { menu.hidden = show === undefined ? !menu.hidden : !show; };
+  av.addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
+  av.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) menu.hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") menu.hidden = true; });
+  if (out) out.addEventListener("click", () => { menu.hidden = true; signOutUser(); });
+})();
 $("#newProjBtn").addEventListener("click", newProject);
 $("#createProjBtn").addEventListener("click", newProject);
 $("#projSearch").addEventListener("input", (e) => renderDashboard(e.target.value));
@@ -2106,6 +2119,9 @@ function personalize(user) {
   $("#dashAvatar").src = user.photoURL || "../assets/profile.jpg";
   $("#dashName").textContent = user.displayName || "Ss Animation";
   $("#dashHandle").textContent = user.email || "";
+  const mn = $("#acctMenuName"), me = $("#acctMenuEmail");
+  if (mn) mn.textContent = user.displayName || "Ss Animation";
+  if (me) me.textContent = user.email || "";
 }
 async function onUser(user) {
   if (!user) { if (fb) fb.user = null; gateStatus(""); showGate(); return; }
@@ -2269,7 +2285,16 @@ window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault(); deferredPrompt = e; $("#installBtn").hidden = false;
 });
 $("#installBtn").addEventListener("click", async () => {
-  if (!deferredPrompt) return;
+  if (!deferredPrompt) {
+    const b = $("#installBtn");
+    if (b && !b.dataset.hint) {
+      b.dataset.hint = "1";
+      const old = b.textContent;
+      b.textContent = "Browser menu → Add to Home Screen";
+      setTimeout(() => { b.textContent = old; delete b.dataset.hint; }, 3400);
+    }
+    return;
+  }
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null; $("#installBtn").hidden = true;
