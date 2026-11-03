@@ -715,6 +715,16 @@ const redoB = $("#redoBtn"); if (redoB) redoB.addEventListener("click", () => {
   if (hIdx >= history.length - 1) { setNote("Nothing to redo yet."); return; }
   hIdx++; restoreHistory(history[hIdx]);
 });
+function undoStep() { if (hIdx <= 0) { setNote("Nothing to undo yet."); return; } hIdx--; restoreHistory(history[hIdx]); }
+function redoStep() { if (hIdx >= history.length - 1) { setNote("Nothing to redo yet."); return; } hIdx++; restoreHistory(history[hIdx]); }
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target && e.target.tagName) || "";
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target && e.target.isContentEditable)) return;
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const k = (e.key || "").toLowerCase();
+  if (k === "z" && !e.shiftKey) { e.preventDefault(); undoStep(); }
+  else if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); redoStep(); }
+});
 
 /* ---------------- Timeline ---------------- */
 const fmt = s => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(Math.floor(s % 60)).padStart(2, "0");
@@ -765,7 +775,7 @@ function renderTracks() {
   if (!sc.objects.length) {
     const nr = document.createElement("div");
     nr.className = "track-row no-layers";
-    nr.innerHTML = `<span class="track-name" style="opacity:.55">No layers</span>`;
+    nr.innerHTML = `<span class="track-name" style="opacity:.55">No layers</span><div class="track-lane"><span style="position:absolute;left:8px;top:3px;font-size:12px;opacity:.55">No layers in timeline. Select characters or media to add layers.</span></div>`;
     wrap.appendChild(nr);
   }
   for (const o of sc.objects) {
