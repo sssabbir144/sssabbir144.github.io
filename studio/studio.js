@@ -2067,12 +2067,11 @@ function personalize(user) {
   $("#dashHandle").textContent = user.email || "";
 }
 async function onUser(user) {
-  if (!user) { if (fb) fb.user = null; showGate(); return; }
+  if (!user) { if (fb) fb.user = null; gateStatus(""); showGate(); return; }
   fb.user = user;
   dismissGate();
   personalize(user);
   $("#dashboard").scrollIntoView({ behavior: "smooth" });
-  setNote(`Welcome, ${user.displayName || "creator"}! You are signed in — projects save in this browser and back up to your cloud.`);
   try {
     const { doc, setDoc, getDoc } = fb.fsM;
     const ref = doc(fb.db, "users", user.uid);
@@ -2087,6 +2086,9 @@ async function onUser(user) {
     cloudOk = false;
     applyPlan("free");
   }
+  setNote(cloudOk
+    ? `Welcome, ${user.displayName || "creator"}! You are signed in — projects save in this browser and back up to your cloud.`
+    : `Welcome, ${user.displayName || "creator"}! You are signed in — projects save in this browser.`);
   renderDashboard($("#projSearch") ? $("#projSearch").value : "");
 }
 async function initFirebase() {
