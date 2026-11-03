@@ -335,3 +335,20 @@ body.gate-open { overflow: hidden; }
 .dash-card-btns .btn { flex: 1 1 130px; font-size: 13px; padding: 10px 6px; letter-spacing: .2px; }
 .dash-layout .dash-cover { height: 190px; }
 .dash-layout .cover-plate { right: 128px; }
+
+/* ===== P2: master-copy editor chrome ===== */
+.autosave-badge { background: rgba(46,160,67,.16); color: #3fb950; border: 1px solid rgba(46,160,67,.45); border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.stage-viewport { background-color: #141519; background-image: radial-gradient(rgba(255,255,255,.13) 1.2px, transparent 1.3px); background-size: 22px 22px; }
+.stage-viewport:fullscreen { background-color: #141519; }
+/* Character Studio page */
+.cs-page .cs-frame { max-width: 1180px; }
+.cs-layout { display: grid; grid-template-columns: 210px 1fr 300px; gap: 18px; padding: 18px; align-items: start; }
+.cs-layers-title { font-weight: 800; margin: 0 0 10px; }
+.cs-layer { display: block; width: 100%; text-align: left; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; font: inherit; font-weight: 600; cursor: pointer; }
+.cs-layer.active { border-color: var(--accent); color: var(--accent); }
+.cs-preview { text-align: center; }
+.cs-preview canvas { max-width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+.cs-options h4 { margin-top: 0; }
+.cs-swatches { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 14px; }
+.cs-swatch { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; padding: 0; }
+@media (max-width: 900px) { .cs-layout { grid-template-columns: 1fr; } }

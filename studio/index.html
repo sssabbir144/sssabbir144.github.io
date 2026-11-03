@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=19">
+<link rel="stylesheet" href="studio.css?v=20">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -166,16 +166,10 @@
       <div class="app-topbar">
         <div class="app-brand"><span class="app-logo">Ss</span><span class="app-name">Ss Animation</span></div>
         <input class="project-name" id="projectName" type="text" value="Untitled Project" aria-label="Project name">
-        <div class="mode-switch" role="group" aria-label="Editor mode">
-          <button class="mode-btn active" id="modeEasy" type="button">Easy Mode</button>
-          <button class="mode-btn" id="modeAdvanced" type="button">Advanced Mode</button>
-        </div>
+        <span class="autosave-badge" id="autosaveBadge">● Auto-saved</span>
         <div class="app-actions">
-          <span class="net-badge" id="netBadge" title="The studio works offline — projects live in this browser">● Online</span>
-          <button class="btn btn-accent" id="getProBtn" type="button">Get Pro</button>
-          <button class="btn btn-panel" id="saveProjectBtn" type="button">Save Project</button>
-          <button class="btn btn-panel" id="exportBtn" type="button">Export Video</button>
-          <button class="btn btn-panel" id="projectsBtn" type="button">Projects</button>
+          <button class="btn btn-panel" id="saveProjectBtn" type="button">Save</button>
+          <button class="btn btn-accent" id="exportBtn" type="button">Export</button>
           <button class="avatar-btn" id="profileBtn" type="button" aria-label="Profile">S</button>
         </div>
       </div>
@@ -185,12 +179,6 @@
         <nav class="tool-rail" id="toolRail" aria-label="Studio tools"></nav>
         <aside class="tool-panel" id="toolPanel" aria-label="Tool panel"></aside>
         <div class="stage-area">
-          <div class="stage-toolbar">
-            <span class="stage-label">Canvas · 16:9</span>
-            <label class="zoom-ctl">Canvas zoom
-              <input type="range" id="canvasZoom" min="50" max="150" value="100">
-            </label>
-          </div>
           <div class="stage-viewport" id="stageViewport">
             <div class="stage-canvas" id="stageCanvas">
               <canvas id="stageEl" width="1280" height="720" aria-label="Animation canvas"></canvas>
@@ -230,17 +218,17 @@
             <button class="tl-btn" id="dupSceneBtn" type="button">Duplicate</button>
             <button class="tl-btn" id="splitSceneBtn" type="button">Split</button>
             <button class="tl-btn" id="cameraBtn" type="button">Camera</button>
-            <button class="tl-btn" id="voiceBtn" type="button">Voice</button>
             <button class="tl-btn" id="keyBtn" type="button" title="Add a keyframe for the selected object at the playhead">◆ Keyframe</button>
             <button class="tl-btn" id="keyDelBtn" type="button" title="Delete the keyframe at the playhead">✕ Key</button>
           </div>
           <div class="timeline-tools">
-            <button class="tl-btn" id="undoBtn" type="button" title="Undo">↩ Undo</button>
-            <button class="tl-btn" id="redoBtn" type="button" title="Redo">↪ Redo</button>
-            <button class="tl-btn" id="handBtn" type="button" title="Hand tool">✋</button>
+            <label class="zoom-ctl">Zoom
+              <input type="range" id="canvasZoom" min="50" max="150" value="100">
+            </label>
             <label class="zoom-ctl">Timeline zoom
               <input type="range" id="timelineZoom" min="10" max="100" value="40">
             </label>
+            <button class="tl-btn" id="stageFsBtn" type="button" title="Full screen canvas">⛶ Full Screen</button>
           </div>
         </div>
         <div class="timeline-tracks" id="timelineTracks">
@@ -389,92 +377,40 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="projectsModal" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="projectsTitle">
-    <div class="modal-head"><h3 id="projectsTitle">My Projects</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
-    <ul class="project-list" id="projectList"><li class="project-empty">No saved projects yet. Press “Save Project” and your work will appear here.</li></ul>
-    <div class="modal-actions"><button class="btn btn-panel" data-close type="button">Close</button></div>
-  </div>
-</div>
-
-<!-- ============ CINEMA DIALOG ============ -->
-<div class="modal-backdrop" id="cinemaModal" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cinemaTitle">
-    <div class="modal-head"><h3 id="cinemaTitle">Cinema</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
-    <p class="modal-sub">Watch Ss Animation cartoons on our YouTube channel — it opens in a new tab.</p>
-    <div class="modal-actions">
-      <button class="btn btn-panel" data-close type="button">Stay Here</button>
-      <a class="btn btn-accent" href="https://www.youtube.com/@SsAnimation7888" target="_blank" rel="noopener">Open Cinema</a>
-    </div>
-  </div>
-</div>
-
-<!-- ============ ERASER / PHOTO EDITOR OVERLAY ============ -->
-<div class="editor-overlay" id="eraserOverlay" hidden>
-  <div class="editor-frame">
+<div class="editor-overlay cs-page" id="charStudioOverlay" hidden>
+  <div class="editor-frame cs-frame">
     <div class="editor-head">
-      <strong>Photo Editor — Eraser</strong>
-      <div class="editor-actions">
-        <label class="btn btn-panel" style="cursor:pointer">Open
-          <input type="file" accept="image/*" id="erOpen" hidden></label>
-        <button class="btn btn-panel" id="erExportBtn" type="button">Export</button>
-        <button class="btn btn-accent" id="sendToStudioBtn" type="button">Send to Studio</button>
-        <button class="icon-x" id="eraserCloseBtn" type="button" aria-label="Close editor">✕</button>
-      </div>
-    </div>
-    <div class="editor-tools" role="group" aria-label="Photo editor tools">
-      <button class="tl-btn" data-ertool="select" type="button">Selection</button>
-      <button class="tl-btn" data-ertool="lasso" type="button">Lasso</button>
-      <button class="tl-btn active" data-ertool="eraser" type="button">Eraser</button>
-      <button class="tl-btn" data-ertool="brush" type="button">Brush</button>
-      <button class="tl-btn" data-ertool="picker" type="button">Pick Colour</button>
-      <button class="tl-btn" id="erClearSelBtn" type="button">Clear Selected Area</button>
-      <label class="zoom-ctl">Size <input type="range" id="erSize" min="4" max="90" value="28"></label>
-      <label class="zoom-ctl">Colour <input type="color" id="erColor" value="#F5C518"></label>
-      <label class="zoom-ctl">Zoom <input type="range" id="erZoom" min="40" max="220" value="100"></label>
-    </div>
-    <div class="editor-canvas" id="erCanvasWrap">
-      <div class="er-stage" id="erStage">
-        <canvas id="erCanvas" width="880" height="495"></canvas>
-        <canvas id="erGuide" width="880" height="495"></canvas>
-      </div>
-      <p class="er-hint" id="erHint">Open an image to start erasing its background. Eraser removes pixels (transparent); Brush paints back; Selection/Lasso + “Clear Selected Area” removes a whole region.</p>
-    </div>
-  </div>
-</div>
-
-<!-- Character Studio overlay -->
-<div class="editor-overlay" id="charStudioOverlay" hidden>
-  <div class="editor-frame">
-    <div class="editor-head">
+      <button class="btn btn-panel" id="csBackBtn" type="button">← Back</button>
       <strong>Character Studio</strong>
       <div class="editor-actions">
         <button class="btn btn-accent" id="csSaveBtn" type="button">Save Character</button>
         <button class="icon-x" id="csCloseBtn" type="button" aria-label="Close character studio">✕</button>
       </div>
     </div>
-    <div class="cs-body">
-      <div class="cs-preview"><canvas id="csCanvas" width="300" height="360"></canvas></div>
-      <div class="cs-controls">
-        <label class="field">Character name <input type="text" id="csName" placeholder="e.g. Grandpa"></label>
-        <label class="field">Skin tone <input type="color" id="csSkin" value="#f2c094"></label>
-        <div class="field-row">
-          <label class="field">Hair style
-            <select id="csHairStyle">
-              <option value="sweep">Sweep</option><option value="short">Short</option>
-              <option value="long">Long</option><option value="bun">Bun</option>
-              <option value="cap">Cap</option><option value="tuft">Tuft</option>
-            </select></label>
-          <label class="field">Hair colour <input type="color" id="csHair" value="#3a2a1c"></label>
-        </div>
-        <div class="field-row">
-          <label class="field">Shirt / dress <input type="color" id="csShirt" value="#e74c3c"></label>
-          <label class="field">Pants <input type="color" id="csPants" value="#2d4a7a"></label>
-        </div>
-        <label class="slider-row" style="display:flex;align-items:center;gap:8px">Skirt / dress bottom <input type="checkbox" id="csSkirt" style="width:auto"></label>
-        <p class="panel-sub">Easy Mode: pick the parts, watch the preview, save — your character joins the Character panel and Media → People, ready to animate. Advanced posing lives in Anim IK.</p>
+    <div class="cs-layout">
+      <div class="cs-layers">
+        <p class="cs-layers-title">Layers</p>
+        <button class="cs-layer active" data-cslayer="head" type="button">Head</button>
+        <button class="cs-layer" data-cslayer="eyes" type="button">Eyes</button>
+        <button class="cs-layer" data-cslayer="lips" type="button">Lips</button>
+        <button class="cs-layer" data-cslayer="body" type="button">Body</button>
+        <button class="cs-layer" data-cslayer="legs" type="button">Legs</button>
+        <button class="cs-layer" data-cslayer="extra" type="button">Additional Layers</button>
+        <label class="field" style="margin-top:16px">Character name <input type="text" id="csName" placeholder="e.g. Grandpa"></label>
       </div>
+      <div class="cs-preview">
+        <canvas id="csCanvas" width="440" height="520"></canvas>
+        <label class="zoom-ctl" style="margin-top:10px">Preview zoom
+          <select id="csZoom"><option value="fit">Fit to screen</option><option value="75">75%</option><option value="100">100%</option></select>
+        </label>
+      </div>
+      <div class="cs-options" id="csOptions"></div>
     </div>
+    <input type="hidden" id="csSkin" value="#f2c094"><input type="hidden" id="csHair" value="#3a2a1c">
+    <input type="hidden" id="csHairStyle" value="sweep"><input type="hidden" id="csShirt" value="#e74c3c">
+    <input type="hidden" id="csPants" value="#2d4a7a"><input type="hidden" id="csEyes" value="round">
+    <input type="hidden" id="csMouth" value="smile"><input type="hidden" id="csExtra" value="none">
+    <input type="checkbox" id="csSkirt" hidden>
   </div>
 </div>
 
@@ -486,6 +422,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=20"></script>
+<script src="studio.js?v=21"></script>
 </body>
 </html>

@@ -258,12 +258,42 @@ function drawChar(ctx, o, ev) {
     ctx.beginPath(); ctx.arc(0, -146, 52, Math.PI, 0); ctx.fill();
     if (p.hairStyle === "sweep") { ctx.beginPath(); ctx.ellipse(14, -158, 44, 20, -0.25, 0, 7); ctx.fill(); }
   }
-  // face
-  ctx.fillStyle = "#26221f";
-  ctx.beginPath(); ctx.arc(-18, -118, 5.5, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.arc(18, -118, 5.5, 0, 7); ctx.fill();
-  ctx.strokeStyle = "#26221f"; ctx.lineWidth = 4; ctx.beginPath();
-  ctx.arc(0, -102, 15, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  // face (eyes + mouth variants; defaults keep the classic look)
+  ctx.fillStyle = "#26221f"; ctx.strokeStyle = "#26221f";
+  const eyeStyle = p.eyes || "round";
+  if (eyeStyle === "happy") {
+    ctx.lineWidth = 4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.arc(-18, -114, 7, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(18, -114, 7, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
+  } else if (eyeStyle === "sleepy") {
+    ctx.lineWidth = 4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-25, -118); ctx.lineTo(-11, -118); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(11, -118); ctx.lineTo(25, -118); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(-18, -118, 5.5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(18, -118, 5.5, 0, 7); ctx.fill();
+  }
+  const mouthStyle = p.mouth || "smile";
+  if (mouthStyle === "open") {
+    ctx.beginPath(); ctx.ellipse(0, -100, 8, 10, 0, 0, 7); ctx.fill();
+  } else if (mouthStyle === "flat") {
+    ctx.lineWidth = 4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-10, -100); ctx.lineTo(10, -100); ctx.stroke();
+  } else {
+    ctx.lineWidth = 4; ctx.beginPath();
+    ctx.arc(0, -102, 15, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  }
+  if ((p.extra || "none") === "glasses") {
+    ctx.lineWidth = 3.5; ctx.strokeStyle = "#26221f";
+    ctx.beginPath(); ctx.arc(-18, -118, 12, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(18, -118, 12, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6, -118); ctx.lineTo(6, -118); ctx.stroke();
+  }
+  if ((p.extra || "none") === "cap") {
+    ctx.fillStyle = p.cap || "#24457a";
+    ctx.beginPath(); ctx.arc(0, -140, 54, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -138, 62, 10, 0, 0, Math.PI); ctx.fill();
+  }
   ctx.fillStyle = "rgba(240,120,110,.45)";
   ctx.beginPath(); ctx.arc(-34, -104, 8, 0, 7); ctx.fill();
   ctx.beginPath(); ctx.arc(34, -104, 8, 0, 7); ctx.fill();
@@ -651,6 +681,7 @@ function pushHistory() {
   if (!restoring) { clearTimeout(autoT); autoT = setTimeout(autoSave, 1200); }
 }
 async function autoSave() {
+  const ab = $("#autosaveBadge"); if (ab) ab.textContent = "● Saving…";
   try {
     project.name = $("#projectName").value.trim() || "Untitled Project";
     const all = await idbAll("projects");
@@ -660,7 +691,8 @@ async function autoSave() {
     localStorage.setItem("ssanim_last", project.name);
     cloudBackupProject(false);
     renderDashboard($("#projSearch") ? $("#projSearch").value : "");
-  } catch { /* storage unavailable — manual save still offered */ }
+    if (ab) ab.textContent = "● Auto-saved";
+  } catch { if (ab) ab.textContent = "● Auto-saved"; /* storage unavailable — manual save still offered */ }
 }
 function restoreHistory(json) {
   restoring = true;
@@ -862,6 +894,11 @@ function applyStageZoom() {
   $("#stageCanvas").style.transform = `translate(${tx}px, ${ty}px) scale(${camZoom * sliderZoom})`;
 }
 $("#canvasZoom").addEventListener("input", (e) => { sliderZoom = e.target.value / 100; applyStageZoom(); });
+$("#stageFsBtn").addEventListener("click", () => {
+  const vp = $("#stageViewport");
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (vp.requestFullscreen) vp.requestFullscreen();
+});
 $("#timelineZoom").addEventListener("input", (e) => {
   const z = 0.4 + e.target.value / 100;
   $$(".track-lane").forEach(l => { l.style.transform = `scaleX(${z})`; l.style.transformOrigin = "left center"; });
@@ -872,7 +909,6 @@ $("#layersBtn").addEventListener("click", () => {
   rows.forEach(r => r.style.display = hidden ? "" : "none");
   $("#layersBtn").textContent = hidden ? "Layers ▾" : "Layers ▸";
 });
-$("#voiceBtn").addEventListener("click", () => selectTool("sounds"));
 window.addEventListener("resize", drawPlayhead);
 
 /* ---------------- Save / load (IndexedDB) ---------------- */
@@ -904,20 +940,6 @@ async function loadProject(name) {
   renderScenes(); renderTracks(); drawStage(); drawPlayhead();
   return true;
 }
-$("#projectsBtn").addEventListener("click", async () => {
-  const all = (await idbAll("projects")).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-  const ul = $("#projectList");
-  ul.innerHTML = all.length
-    ? all.map(p => `<li><strong>${p.name}</strong> · ${p.scenes.length} scene(s) · saved ${new Date(p.savedAt || Date.now()).toLocaleString()}<br><button class="btn btn-panel" data-load="${p.name}" type="button" style="margin-top:6px;padding:6px 12px;font-size:13px">Open</button></li>`).join("")
-    : `<li class="project-empty">No saved projects yet. Press “Save Project” and your work will appear here.</li>`;
-  $$("[data-load]", ul).forEach(b => b.addEventListener("click", async () => {
-    await loadProject(b.dataset.load);
-    closeModal($("#projectsModal"));
-    setNote(`Project “${b.dataset.load}” opened.`);
-  }));
-  openModal("#projectsModal");
-});
-
 /* ---------------- Tool rail + panels ---------------- */
 const SPRITES = ["Bird Fly", "Boy and Girl Walking", "Boy Walking", "Dog Walk", "Girl Walk", "Cat Walk"];
 const TUTORIALS = [
@@ -926,15 +948,12 @@ const TUTORIALS = [
 const TOOLS = [
   { id: "character", icon: "🧑", name: "Character" },
   { id: "media", icon: "🖼️", name: "Media" },
-  { id: "effect", icon: "🌧️", name: "Effect" },
+  { id: "effect", icon: "🌧️", name: "Effects" },
   { id: "studio", icon: "🎬", name: "Studio" },
   { id: "assets", icon: "📦", name: "Asset Library" },
-  { id: "sprite", icon: "🐦", name: "Sprite Sheet" },
+  { id: "speech", icon: "🎙️", name: "Speech" },
   { id: "sounds", icon: "🔊", name: "Sounds" },
-  { id: "ik", icon: "🦴", name: "Anim IK" },
-  { id: "eraser", icon: "🧽", name: "Eraser" },
-  { id: "tutorial", icon: "▶️", name: "Tutorial" },
-  { id: "cinema", icon: "🎥", name: "Cinema" }
+  { id: "search", icon: "🔍", name: "Search" }
 ];
 const rail = $("#toolRail"), panel = $("#toolPanel");
 TOOLS.forEach((t, i) => {
@@ -1023,44 +1042,11 @@ const PANELS = {
     <button class="btn btn-panel panel-btn" id="fxSoundBtn" type="button">Test Rain Sound</button>
     ${note("Effects belong to this scene — switch scenes to give each one its own weather.")}`;
   },
-  studio: () => {
-    const o = selObj();
-    return `<h4>Studio</h4>
-    <div class="chip-row" role="tablist">
-      <button class="chip ${studioMode === 0 ? "active" : ""}" data-studiomode="0" type="button">Easy Mode</button>
-      <button class="chip ${studioMode === 1 ? "active" : ""}" data-studiomode="1" type="button">Advanced Mode</button>
-    </div>
-    <div id="studioEasy" ${studioMode === 1 ? "hidden" : ""}>
-      <p class="panel-sub">One tap builds a ready scene — background, characters and mood together. Adjust anything afterwards.</p>
-      <button class="btn btn-accent panel-btn" data-template="village" type="button">🌅 Village Morning</button>
-      <button class="btn btn-panel panel-btn" data-template="rain" type="button">🌧️ Rainy Day</button>
-      <button class="btn btn-panel panel-btn" data-template="class" type="button">🏫 Classroom Talk</button>
-      <button class="btn btn-panel panel-btn" data-template="river" type="button">🏞️ River Picnic</button>
-      <button class="btn btn-panel panel-btn" data-template="walkin" type="button">🚶 Walk-In Entrance</button>
-    </div>
-    <div id="studioAdv" ${studioMode === 0 ? "hidden" : ""}>
-      <p class="panel-sub">${o ? `Selected: <strong>${o.name}</strong> — precise numbers, no dragging.` : "Select an object on the canvas to edit its numbers here."}</p>
-      <div class="field-row">
-        <label class="field">X <input type="number" id="advX" value="${o ? Math.round(o.x) : 0}" step="5"></label>
-        <label class="field">Y <input type="number" id="advY" value="${o ? Math.round(o.y) : 0}" step="5"></label>
-      </div>
-      <div class="field-row">
-        <label class="field">Scale % <input type="number" id="advScale" value="${o ? Math.round(o.scale * 100) : 100}" step="5" min="10" max="400"></label>
-        <label class="field">Rotation ° <input type="number" id="advRot" value="${o ? Math.round(o.rot) : 0}" step="5"></label>
-      </div>
-      <label class="field">Opacity % <input type="number" id="advOp" value="${o ? Math.round(o.op * 100) : 100}" step="5" min="5" max="100"></label>
-      <label class="field">Scene length (seconds) <input type="number" id="advDur" value="${scene().duration}" step="1" min="1" max="120"></label>
-      <label class="field">Scene colour wash <input type="color" id="advWash" value="${scene().bgColor || "#f5c518"}"></label>
-      <button class="btn btn-panel panel-btn" id="advWashClear" type="button">Clear Colour Wash</button>
-    </div>
-    ${note("On the original the Studio is Pro-gated; here it is open until plans activate (Phase F). Character building lives in Character → Character Studio (Easy) and posing in Anim IK (Advanced).")}`;
-  },
   assets: () => `<h4>Asset Library</h4>
     <p class="panel-sub">49 props for your scenes — tap to add. 🔒 Pro assets unlock with a plan.</p>
     ${libraryItems.length ? `<p class="panel-sub"><strong>Owner's library</strong> — also under Media, by kind.</p>
     <div class="card-grid">${libraryItems.map(i => libCard(i, i.kind === "background" ? "bg" : i.kind, i.kind === "background" ? "Set as background" : "+ Add to canvas")).join("")}</div>` : ""}
     <div class="card-grid">${PROP_LIST.map(propCard).join("")}</div>
-    <button class="btn btn-accent panel-btn" id="sendEraserBtn" type="button">Send Image to Eraser</button>
     <details class="lib-manager">
       <summary>Owner Library — add your own assets</summary>
       <label class="field">Asset image <input type="file" id="libFile" accept="image/*"></label>
@@ -1077,52 +1063,19 @@ const PANELS = {
         <input type="file" id="libImport" accept="application/json" hidden></label>
       ${note("Owner uploads are stored in this browser for now; cloud storage (Phase F) will carry them to every visitor. Use the backup file to keep them safe and move them later.")}
     </details>`,
-  sprite: () => `<h4>Sprite Sheet</h4>
-    <p class="panel-sub">Ready animation packs — 6 frames each. Add one, press Play, and it moves; keyframes can carry it across the scene.</p>
-    ${[["bird", "Bird Fly"], ["walkers", "Boy and Girl Walking"], ["boy", "Boy Walking"], ["dog", "Dog Walk"], ["girl", "Girl Walk"], ["cat", "Cat Walk"]].map(s =>
-      `<div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🐾</span><span class="mc-name">${s[1]}</span>
-      <button class="btn btn-panel panel-btn" data-sprite="${s[0]}|${s[1]}" type="button">Add to Timeline</button></div>`).join("")}`,
   sounds: () => `<h4>Sounds</h4>
-    ${chips(["All", "BGM", "SFX", "Voice"], 3)}
     <div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🎵</span><span class="mc-name">Background Music &amp; Effects</span>
-      <span class="panel-sub" style="display:block;margin:4px 0 0">A starter library is included; more tracks are being added.</span></div>
-    <h4 style="margin-top:14px">Voice</h4>
+      <span class="panel-sub" style="display:block;margin:4px 0 0">A starter library is included. Add full tracks from Media → Audio, and voice from Speech.</span></div>`,
+  speech: () => `<h4>Speech</h4>
     <p class="panel-sub">Record your voice or upload audio — it becomes this scene's voice track and plays during playback.</p>
     <button class="btn btn-accent panel-btn" id="recordBtn" type="button">● Record Voice</button>
     <div id="recordOut"></div>
     <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Upload Audio
       <input type="file" accept="audio/*" id="audioUpload" hidden></label>
     <div id="audioOut"></div>`,
-  ik: () => {
-    const o = selObj();
-    const pose = (o && o.pose) || { arm: 0, leg: 0, head: 0, lean: 0 };
-    return `<h4>Anim IK</h4>
-    <p class="panel-sub">Turn any 2D character image into an animated puppet with IK joints, and pose built-in characters joint by joint.</p>
-    <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">Add 2D Character Image
-      <input type="file" accept="image/*" data-upload hidden></label>
-    <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Add Full Body Image
-      <input type="file" accept="image/*" data-upload hidden></label>
-    <p class="panel-sub" style="margin-top:12px"><strong>IK joints</strong> — Head · Neck · Shoulder L/R · Elbow L/R · Hand L/R · Hip L/R · Knee L/R · Foot L/R.</p>
-    <p class="panel-sub">${o && o.type === "char" ? `Posing: <strong>${o.name}</strong>` : "Select a character on the canvas to pose it."}</p>
-    <label class="slider-row">Arm swing <input type="range" id="ikArm" min="-70" max="70" value="${pose.arm || 0}"></label>
-    <label class="slider-row">Leg swing <input type="range" id="ikLeg" min="-70" max="70" value="${pose.leg || 0}"></label>
-    <label class="slider-row">Head tilt <input type="range" id="ikHead" min="-40" max="40" value="${pose.head || 0}"></label>
-    <label class="slider-row">Body lean <input type="range" id="ikLean" min="-30" max="30" value="${pose.lean || 0}"></label>
-    <button class="btn btn-panel panel-btn" id="ikOutlineBtn" type="button">${o && o.outline ? "Hide Body Outline" : "Draw Body Outline"}</button>
-    <button class="btn btn-panel panel-btn" id="ikResetBtn" type="button">Reset Pose</button>
-    ${note("On the original, Anim IK is a Pro feature in Advanced Mode; here it is open until plans activate (Phase F).")}`;
-  },
-  eraser: () => `<h4>Eraser</h4>
-    <p class="panel-sub">Remove backgrounds and clean up images in the Photo Editor.</p>
-    <button class="btn btn-accent panel-btn" id="openEraserBtn" type="button">Open Photo Editor</button>`,
-  tutorial: () => `<h4>Tutorial</h4>
-    <p class="panel-sub">Learn the studio step by step.</p>
-    ${TUTORIALS.map(t => `<div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">▶️</span>
-      <span class="mc-name">${t[0]}</span><span class="panel-sub" style="display:block;margin:2px 0 0">${t[1]}</span></div>`).join("")}
-    ${note("Tutorial videos are being recorded and will play right here.")}`,
-  cinema: () => `<h4>Cinema</h4>
-    <p class="panel-sub">Watch Ss Animation cartoons on YouTube.</p>
-    <button class="btn btn-accent panel-btn" id="openCinemaBtn" type="button">Open Cinema</button>`
+  search: () => `<h4>Search</h4>
+    <input type="search" id="libSearch" placeholder="Search characters, backgrounds, props..." aria-label="Search the library" style="width:100%">
+    <div id="libResults" style="margin-top:10px"><p class="panel-sub">Type to search the whole library — tap a result to add it to your scene.</p></div>`
 };
 async function attachVoice(blob, label) {
   const assetId = nid("vo");
@@ -1180,17 +1133,31 @@ function wirePanel() {
     else { $$(".chip", panel).forEach(x => x.classList.remove("active")); c.classList.add("active"); }
   }));
   const ms = $("#mediaSoundsBtn"); if (ms) ms.addEventListener("click", () => selectTool("sounds"));
-  const se = $("#sendEraserBtn"); if (se) se.addEventListener("click", async () => {
-    const o = selObj();
-    if (o && o.type === "image") {
-      const rec = await idbGet("assets", o.assetId);
-      if (rec && rec.blob) { openEraser(rec.blob); return; }
-    }
-    openEraser();
-    setNote("Photo Editor open — use Open to load an image, or select an image on the canvas first and use Send Image to Eraser.");
+  const ls = $("#libSearch");
+  if (ls) ls.addEventListener("input", () => {
+    const q = ls.value.trim().toLowerCase(), box = $("#libResults");
+    if (!q) { box.innerHTML = `<p class="panel-sub">Type to search the whole library — tap a result to add it to your scene.</p>`; return; }
+    const hits = [];
+    Object.keys(allPresets()).forEach(n => { if (n.toLowerCase().includes(q)) hits.push({ kind: "char", name: n, sub: "Character" }); });
+    BG_LIST.forEach(([id, n]) => { if (n.toLowerCase().includes(q)) hits.push({ kind: "bg", id, name: n, sub: "Background" }); });
+    PROP_LIST.forEach(([e, n, pro]) => { if (n.toLowerCase().includes(q)) hits.push({ kind: "prop", emoji: e, name: n, pro, sub: "Prop" }); });
+    libraryItems.forEach(it => { if (it.name.toLowerCase().includes(q)) hits.push({ kind: "lib", id: it.id, name: it.name, sub: "Owner's Library" }); });
+    box.innerHTML = hits.length ? hits.slice(0, 24).map((h, i) =>
+      `<div class="mini-card clickable" data-searchhit="${i}"><span class="mc-ico">${h.kind === "prop" ? h.emoji : h.kind === "bg" ? "🏞️" : h.kind === "char" ? "🧑" : "🗂️"}</span><span class="mc-name">${h.name}</span><span class="mc-add">${h.sub} — tap to add</span></div>`).join("")
+      : `<p class="panel-sub">Nothing matches that search.</p>`;
+    $$("[data-searchhit]", box).forEach(c => c.addEventListener("click", async () => {
+      const h = hits[+c.dataset.searchhit];
+      if (h.kind === "char") addCharacter(h.name);
+      else if (h.kind === "bg") { scene().bg = h.id; pushHistory(); drawStage(); setNote(`"${h.name}" is now this scene's background.`); }
+      else if (h.kind === "prop") { if (h.pro && !isPro()) { setNote(`"${h.name}" is a Pro asset — members unlock the full library.`); openPro(); return; } addProp(h.emoji, h.name); }
+      else {
+        const it = libraryItems.find(x => x.id === h.id); if (!it) return;
+        if (it.pro && !isPro()) { setNote(`"${it.name}" is a Pro asset.`); openPro(); return; }
+        if (it.kind === "background") { scene().bgAsset = it.assetId; pushHistory(); drawStage(); setNote(`"${it.name}" is now this scene's background.`); }
+        else { const rec = await idbGet("assets", it.assetId); if (rec && rec.blob) addImageFile(rec.blob).catch(() => {}); }
+      }
+    }));
   });
-  const oe = $("#openEraserBtn"); if (oe) oe.addEventListener("click", openEraser);
-  const oc = $("#openCinemaBtn"); if (oc) oc.addEventListener("click", () => openModal("#cinemaModal"));
   const rb = $("#recordBtn");
   if (rb) rb.addEventListener("click", async () => {
     if (mediaRec && mediaRec.state === "recording") { mediaRec.stop(); rb.textContent = "● Record Voice"; return; }
@@ -1451,24 +1418,17 @@ function wireFx() {
   });
 }
 function selectTool(id) {
-  if (id === "eraser") { openEraser(); return; }
-  if (id === "cinema") { openModal("#cinemaModal"); return; }
+  if (id === "studio") {
+    const o = selObj();
+    if (o && o.type === "char") openCharStudio(o.params, o.name, o.id);
+    else openCharStudio(null, "", null);
+    return;
+  }
   $$(".rail-btn").forEach(b => b.classList.toggle("active", b.dataset.tool === id));
   panel.dataset.tool = id;
   panel.innerHTML = PANELS[id]();
   wirePanel();
 }
-
-/* ---------------- Mode switch ---------------- */
-const modeEasy = $("#modeEasy"), modeAdvanced = $("#modeAdvanced");
-function setMode(adv) {
-  modeEasy.classList.toggle("active", !adv);
-  modeAdvanced.classList.toggle("active", adv);
-  document.body.classList.toggle("advanced", adv);
-  setNote(adv ? "Advanced Mode — full tool set and rigging controls." : "Easy Mode — the simple way to make a cartoon.");
-}
-modeEasy.addEventListener("click", () => setMode(false));
-modeAdvanced.addEventListener("click", () => setMode(true));
 
 /* ---------------- Modals ---------------- */
 function openModal(sel) { $(sel).hidden = false; }
@@ -1785,7 +1745,6 @@ function openPro(plan) {
   $$("#payPlans .pay-plan").forEach(b => b.classList.toggle("active", b.dataset.plan === payPlan));
   openModal("#proModal");
 }
-$("#getProBtn").addEventListener("click", () => openPro());
 $$(".plan-btn[data-plan^='Pro']").forEach(b => b.addEventListener("click", () => openPro(b.dataset.plan)));
 $$("#payPlans .pay-plan").forEach(b => b.addEventListener("click", () => {
   payPlan = b.dataset.plan;
@@ -1819,148 +1778,6 @@ $("#paySubmitBtn").addEventListener("click", async () => {
   $("#payNote").textContent = cloudSent
     ? "Received — thank you! We verify payments by hand and activate Pro within a few minutes to 24 hours."
     : "Received on this device — thank you! The cloud copy could not be saved just now, so please also send your Transaction ID on WhatsApp (link on the dashboard) so we can verify and activate Pro within a few minutes to 24 hours.";
-});
-
-/* ---------------- Eraser PhotoEditor (real engine) ---------------- */
-const er = { tool: "eraser", drawing: false, sel: null, lasso: [], last: null, has: false };
-function erCtxs() { return { main: $("#erCanvas").getContext("2d"), guide: $("#erGuide").getContext("2d") }; }
-function erPos(e) {
-  const r = $("#erCanvas").getBoundingClientRect();
-  return {
-    x: (e.clientX - r.left) * $("#erCanvas").width / r.width,
-    y: (e.clientY - r.top) * $("#erCanvas").height / r.height
-  };
-}
-function erLoadBlob(blob) {
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.onload = () => {
-    const maxW = 1100, maxH = 640;
-    const s = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
-    const w = Math.max(2, Math.round(img.naturalWidth * s)), h = Math.max(2, Math.round(img.naturalHeight * s));
-    for (const id of ["erCanvas", "erGuide"]) { const c = $("#" + id); c.width = w; c.height = h; }
-    erCtxs().main.drawImage(img, 0, 0, w, h);
-    er.has = true; er.sel = null; er.lasso = [];
-    $("#erHint").textContent = "Image loaded — erase the background, then Send to Studio or Export the transparent PNG.";
-    URL.revokeObjectURL(url);
-  };
-  img.src = url;
-}
-function openEraser(withBlob) {
-  $("#eraserOverlay").hidden = false;
-  if (withBlob) erLoadBlob(withBlob);
-}
-$("#eraserCloseBtn").addEventListener("click", () => { $("#eraserOverlay").hidden = true; });
-$("#erOpen").addEventListener("change", (e) => {
-  const f = e.target.files && e.target.files[0];
-  if (f) erLoadBlob(f);
-});
-$$("[data-ertool]").forEach(b => b.addEventListener("click", () => {
-  er.tool = b.dataset.ertool;
-  $$("[data-ertool]").forEach(x => x.classList.toggle("active", x === b));
-}));
-$("#erZoom").addEventListener("input", (e) => {
-  $("#erStage").style.transform = `scale(${e.target.value / 100})`;
-});
-function erGuideDraw() {
-  const { guide } = erCtxs();
-  const c = $("#erGuide");
-  guide.clearRect(0, 0, c.width, c.height);
-  guide.strokeStyle = "#F5C518"; guide.lineWidth = 2; guide.setLineDash([7, 5]);
-  if (er.sel) guide.strokeRect(er.sel.x, er.sel.y, er.sel.w, er.sel.h);
-  if (er.lasso.length > 1) {
-    guide.beginPath();
-    guide.moveTo(er.lasso[0][0], er.lasso[0][1]);
-    for (const p of er.lasso.slice(1)) guide.lineTo(p[0], p[1]);
-    guide.closePath(); guide.stroke();
-  }
-  guide.setLineDash([]);
-}
-(function erBind() {
-  const cv = $("#erCanvas");
-  const stamp = (p) => {
-    const { main } = erCtxs();
-    const size = +$("#erSize").value;
-    main.save();
-    if (er.tool === "eraser") {
-      main.globalCompositeOperation = "destination-out";
-      main.beginPath(); main.arc(p.x, p.y, size / 2, 0, 7); main.fill();
-    } else if (er.tool === "brush") {
-      main.globalCompositeOperation = "source-over";
-      main.fillStyle = $("#erColor").value;
-      main.beginPath(); main.arc(p.x, p.y, size / 2, 0, 7); main.fill();
-    }
-    main.restore();
-  };
-  cv.addEventListener("pointerdown", (e) => {
-    if (!er.has) return;
-    const p = erPos(e);
-    cv.setPointerCapture(e.pointerId);
-    if (er.tool === "picker") {
-      const d = erCtxs().main.getImageData(Math.max(0, Math.min(cv.width - 1, Math.round(p.x))), Math.max(0, Math.min(cv.height - 1, Math.round(p.y))), 1, 1).data;
-      const hex = "#" + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, "0")).join("");
-      $("#erColor").value = hex;
-      setNote(`Colour picked: ${hex} — the Brush now paints with it.`);
-      return;
-    }
-    er.drawing = true; er.last = p;
-    if (er.tool === "select") { er.sel = { x: p.x, y: p.y, w: 0, h: 0 }; erGuideDraw(); }
-    else if (er.tool === "lasso") { er.lasso = [[p.x, p.y]]; erGuideDraw(); }
-    else stamp(p);
-  });
-  cv.addEventListener("pointermove", (e) => {
-    if (!er.drawing || !er.has) return;
-    const p = erPos(e);
-    if (er.tool === "select" && er.sel) {
-      er.sel.w = p.x - er.sel.x; er.sel.h = p.y - er.sel.y; erGuideDraw();
-    } else if (er.tool === "lasso") {
-      er.lasso.push([p.x, p.y]); erGuideDraw();
-    } else if (er.tool === "eraser" || er.tool === "brush") {
-      const dx = p.x - er.last.x, dy = p.y - er.last.y;
-      const steps = Math.max(1, Math.floor(Math.hypot(dx, dy) / 6));
-      for (let i = 1; i <= steps; i++) stamp({ x: er.last.x + dx * i / steps, y: er.last.y + dy * i / steps });
-      er.last = p;
-    }
-  });
-  const end = () => { er.drawing = false; };
-  cv.addEventListener("pointerup", end);
-  cv.addEventListener("pointercancel", end);
-})();
-$("#erClearSelBtn").addEventListener("click", () => {
-  if (!er.has) return;
-  const { main, guide } = erCtxs();
-  main.save();
-  main.globalCompositeOperation = "destination-out";
-  if (er.lasso.length > 2) {
-    main.beginPath();
-    main.moveTo(er.lasso[0][0], er.lasso[0][1]);
-    for (const p of er.lasso.slice(1)) main.lineTo(p[0], p[1]);
-    main.closePath(); main.fill();
-  } else if (er.sel) {
-    main.fillRect(er.sel.x, er.sel.y, er.sel.w, er.sel.h);
-  }
-  main.restore();
-  er.sel = null; er.lasso = [];
-  guide.clearRect(0, 0, $("#erGuide").width, $("#erGuide").height);
-  setNote("Selected area cleared to transparent.");
-});
-$("#erExportBtn").addEventListener("click", () => {
-  if (!er.has) { setNote("Open an image first."); return; }
-  $("#erCanvas").toBlob((b) => {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(b);
-    a.download = "ss-animation-erased.png";
-    a.click();
-    setNote("Exported as a transparent PNG.");
-  }, "image/png");
-});
-$("#sendToStudioBtn").addEventListener("click", () => {
-  if (!er.has) { $("#eraserOverlay").hidden = true; return; }
-  $("#erCanvas").toBlob(async (b) => {
-    $("#eraserOverlay").hidden = true;
-    if (b) await addImageFile(new File([b], "erased-image.png", { type: "image/png" }));
-    setNote("Edited image sent to the Studio canvas.");
-  }, "image/png");
 });
 
 /* ---------------- Dashboard (first interface) ---------------- */
@@ -2064,17 +1881,64 @@ function csParams() {
   return {
     skin: $("#csSkin").value, hair: $("#csHair").value, hairStyle: $("#csHairStyle").value,
     shirt: $("#csShirt").value, pants: $("#csPants").value, skirt: $("#csSkirt").checked,
+    eyes: $("#csEyes").value, mouth: $("#csMouth").value, extra: $("#csExtra").value,
     cap: "#24457a"
   };
 }
 function csDraw() {
   const c = $("#csCanvas"), x = c.getContext("2d");
-  x.clearRect(0, 0, 300, 360);
-  const g = x.createLinearGradient(0, 0, 0, 360);
+  x.clearRect(0, 0, 440, 520);
+  const g = x.createLinearGradient(0, 0, 0, 520);
   g.addColorStop(0, "#2a2f38"); g.addColorStop(1, "#1a1d22");
-  x.fillStyle = g; x.fillRect(0, 0, 300, 360);
-  drawChar(x, { params: csParams(), flip: false }, { x: 150, y: 316, scale: 0.86, rot: 0, op: 1, swing: 0 });
+  x.fillStyle = g; x.fillRect(0, 0, 440, 520);
+  drawChar(x, { params: csParams(), flip: false }, { x: 220, y: 472, scale: 1.28, rot: 0, op: 1, swing: 0 });
 }
+let csLayer = "head";
+const CS_SWATCHES = ["#f2c094", "#e8b088", "#c68863", "#8d5a3b", "#3a2a1c", "#e74c3c", "#f5c518", "#2d4a7a", "#27ae60", "#8e44ad", "#ffffff", "#26221f"];
+function csChips(field, options, current) {
+  return `<div class="chip-row">${options.map(([v, label]) =>
+    `<button class="chip ${v === current ? "active" : ""}" data-csfield="${field}" data-csvalue="${v}" type="button">${label}</button>`).join("")}</div>`;
+}
+function csColorRow(label, field, value) {
+  return `<label class="field">${label} <input type="color" data-cscolor="${field}" value="${value}"></label>
+    <div class="cs-swatches">${CS_SWATCHES.map(c => `<button class="cs-swatch" data-csfield="${field}" data-csvalue="${c}" style="background:${c}" type="button" aria-label="${c}"></button>`).join("")}</div>`;
+}
+function csRenderOptions() {
+  const box = $("#csOptions"); if (!box) return;
+  const v = id => $(id).value;
+  if (csLayer === "head") {
+    box.innerHTML = `<h4>Head</h4>
+      <p class="panel-sub">Hair style</p>
+      ${csChips("csHairStyle", [["sweep", "Sweep"], ["short", "Short"], ["long", "Long"], ["bun", "Bun"], ["cap", "Cap"], ["tuft", "Tuft"]], v("#csHairStyle"))}
+      ${csColorRow("Hair colour", "csHair", v("#csHair"))}
+      ${csColorRow("Skin tone", "csSkin", v("#csSkin"))}`;
+  } else if (csLayer === "eyes") {
+    box.innerHTML = `<h4>Eyes</h4>${csChips("csEyes", [["round", "Round"], ["happy", "Happy"], ["sleepy", "Sleepy"]], v("#csEyes"))}`;
+  } else if (csLayer === "lips") {
+    box.innerHTML = `<h4>Lips</h4>${csChips("csMouth", [["smile", "Smile"], ["open", "Open"], ["flat", "Flat"]], v("#csMouth"))}`;
+  } else if (csLayer === "body") {
+    box.innerHTML = `<h4>Body</h4>${csColorRow("Shirt / dress colour", "csShirt", v("#csShirt"))}`;
+  } else if (csLayer === "legs") {
+    box.innerHTML = `<h4>Legs</h4>${csColorRow("Pants colour", "csPants", v("#csPants"))}
+      <label class="slider-row" style="display:flex;align-items:center;gap:8px;margin-top:10px">Skirt / dress bottom <input type="checkbox" id="csOptSkirt" ${$("#csSkirt").checked ? "checked" : ""} style="width:auto"></label>`;
+  } else {
+    box.innerHTML = `<h4>Additional Layers</h4>${csChips("csExtra", [["none", "None"], ["glasses", "Glasses"], ["cap", "Cap"]], v("#csExtra"))}`;
+  }
+  $$("[data-csfield]", box).forEach(b => b.addEventListener("click", () => {
+    $("#" + b.dataset.csfield).value = b.dataset.csvalue;
+    csRenderOptions(); csDraw();
+  }));
+  $$("[data-cscolor]", box).forEach(inp => inp.addEventListener("input", () => {
+    $("#" + inp.dataset.cscolor).value = inp.value; csDraw();
+  }));
+  const sk = $("#csOptSkirt");
+  if (sk) sk.addEventListener("change", () => { $("#csSkirt").checked = sk.checked; csDraw(); });
+}
+$$(".cs-layer").forEach(b => b.addEventListener("click", () => {
+  csLayer = b.dataset.cslayer;
+  $$(".cs-layer").forEach(x => x.classList.toggle("active", x === b));
+  csRenderOptions();
+}));
 function openCharStudio(params, name, targetId) {
   csTargetId = targetId || null;
   const p = params || { skin: "#f2c094", hair: "#3a2a1c", hairStyle: "sweep", shirt: "#e74c3c", pants: "#2d4a7a", skirt: false };
@@ -2083,6 +1947,10 @@ function openCharStudio(params, name, targetId) {
   $("#csHairStyle").value = p.hairStyle || "sweep";
   $("#csShirt").value = p.shirt; $("#csPants").value = p.pants;
   $("#csSkirt").checked = !!p.skirt;
+  $("#csEyes").value = p.eyes || "round"; $("#csMouth").value = p.mouth || "smile";
+  $("#csExtra").value = p.extra || "none";
+  csLayer = "head"; csRenderOptions();
+  $$(".cs-layer").forEach(b => b.classList.toggle("active", b.dataset.cslayer === "head"));
   $("#charStudioOverlay").hidden = false;
   csDraw();
 }
@@ -2091,6 +1959,11 @@ function closeCharStudio() { $("#charStudioOverlay").hidden = true; csTargetId =
   document.addEventListener("input", (e) => { if (e.target && e.target.id === id) csDraw(); });
 });
 $("#csCloseBtn").addEventListener("click", closeCharStudio);
+$("#csBackBtn").addEventListener("click", closeCharStudio);
+$("#csZoom").addEventListener("change", (e) => {
+  const c = $("#csCanvas");
+  c.style.width = e.target.value === "fit" ? "100%" : e.target.value === "75" ? "330px" : "440px";
+});
 $("#csSaveBtn").addEventListener("click", async () => {
   const name = $("#csName").value.trim();
   if (!name) { $("#csName").focus(); setNote("Give your character a name first."); return; }
@@ -2159,6 +2032,11 @@ function personalize(user) {
   $("#dashAvatar").src = user.photoURL || "logo-badge.png?v=2";
   $("#dashName").textContent = user.displayName || "Ss Animation";
   $("#dashHandle").textContent = "@" + ((user.email || "ssanimation").split("@")[0].toLowerCase().replace(/[^a-z0-9_.]/g, "") || "ssanimation");
+  const pb = $("#profileBtn");
+  if (pb) {
+    if (user.photoURL) { pb.innerHTML = `<img src="${user.photoURL}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`; }
+    else pb.textContent = (user.displayName || "S").trim().charAt(0).toUpperCase() || "S";
+  }
   const mn = $("#acctMenuName"), me = $("#acctMenuEmail");
   if (mn) mn.textContent = user.displayName || "Ss Animation";
   if (me) me.textContent = user.email || "";
