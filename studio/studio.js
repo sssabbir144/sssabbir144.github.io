@@ -2324,3 +2324,18 @@ $("#installBtn").addEventListener("click", async () => {
   await deferredPrompt.userChoice;
   deferredPrompt = null; $("#installBtn").hidden = true;
 });
+
+/* Dashboard cover: fade the still out once the banner clip is playing;
+   keep the still as the fallback (video error / reduced motion). */
+(function () {
+  const cv = $("#coverVideo"), cs = $("#coverStill");
+  if (!cv) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    cv.removeAttribute("autoplay");
+    try { cv.pause(); } catch (e) {}
+    return;
+  }
+  cv.addEventListener("playing", () => { if (cs) cs.classList.add("gone"); }, { once: true });
+  const p = cv.play();
+  if (p && p.catch) p.catch(() => {});
+})();
