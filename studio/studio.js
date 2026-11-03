@@ -1962,6 +1962,7 @@ $("#sendToStudioBtn").addEventListener("click", () => {
 });
 
 /* ---------------- Dashboard (first interface) ---------------- */
+let pendingDelName = null;
 async function renderDashboard(filter) {
   const listEl = $("#projList"), emptyEl = $("#projEmpty");
   if (!listEl) return;
@@ -1985,15 +1986,10 @@ async function renderDashboard(filter) {
       setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
     }
   }));
-  $$("[data-dash-del]", listEl).forEach(b => b.addEventListener("click", async () => {
-    const name = b.dataset.dashDel;
-    if (!confirm(`Delete “${name}” from this browser? This cannot be undone.`)) return;
-    try {
-      await idbDel("projects", name);
-      if (localStorage.getItem("ssanim_last") === name) localStorage.removeItem("ssanim_last");
-      setNote(`Project “${name}” deleted from this browser.`);
-      renderDashboard($("#projSearch") ? $("#projSearch").value : "");
-    } catch { setNote("Delete failed — browser storage is unavailable."); }
+  $$("[data-dash-del]", listEl).forEach(b => b.addEventListener("click", () => {
+    pendingDelName = b.dataset.dashDel;
+    $("#delText").textContent = `Delete “${pendingDelName}” from this browser? This cannot be undone.`;
+    openModal("#delModal");
   }));
   appendCloudProjects(listEl, new Set(all.map(p => p.name)), filter);
 }
@@ -2009,6 +2005,18 @@ function newProject() {
 }
 $("#payNowBtn").addEventListener("click", () => openPro());
 $("#powerBtn").addEventListener("click", () => { signOutUser(); });
+$("#delConfirmBtn").addEventListener("click", async () => {
+  const name = pendingDelName;
+  pendingDelName = null;
+  $("#delModal").hidden = true;
+  if (!name) return;
+  try {
+    await idbDel("projects", name);
+    if (localStorage.getItem("ssanim_last") === name) localStorage.removeItem("ssanim_last");
+    setNote(`Project “${name}” deleted from this browser.`);
+    renderDashboard($("#projSearch") ? $("#projSearch").value : "");
+  } catch { setNote("Delete failed — browser storage is unavailable."); }
+});
 /* Account menu on the dashboard avatar (owner's order): tap avatar → name + email + Sign out */
 (() => {
   const av = $("#dashAvatar"), menu = $("#acctMenu"), out = $("#acctSignOutBtn");

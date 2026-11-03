@@ -11,10 +11,11 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Ss Animation">
 <meta property="og:title" content="Ss Animation — 2D Animation Studio">
+<meta property="og:image" content="https://sssabbir144.github.io/studio/logo-master.png">
 <meta property="og:description" content="Create your own 2D cartoon animations in the browser: characters, scenes, voice, timeline and video export.">
 <meta property="og:url" content="https://sssabbir144.github.io/studio/">
 <meta name="theme-color" content="#101010">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,6 +68,7 @@
   <div class="login-content">
     <span class="login-badge">⚡ 10× Faster Channel Growth</span>
     <div class="login-bottom">
+      <img class="login-logo" src="logo-badge.png" alt="Ss Animation logo">
       <h1 class="login-title"><span class="login-title-accent">Ss</span> Animation</h1>
       <p class="login-tagline">Best AI Animation Tool for YouTubers</p>
       <p class="login-desc">Create stunning cartoon stories with AI. Generate characters, backgrounds, and voices automatically.</p>
@@ -100,7 +102,7 @@
   <!-- ============ DASHBOARD — the first interface ============ -->
   <section class="dash-wrap" id="dashboard" aria-label="Your studio dashboard">
     <div class="dash-topbar">
-      <div class="dash-brand"><img class="dash-logo" src="icon.svg" alt="Ss Animation logo"><span><span class="dash-brand-accent">Ss</span> Animation</span></div>
+      <div class="dash-brand"><img class="dash-logo" src="logo-badge.png" alt="Ss Animation logo"><span><span class="dash-brand-accent">Ss</span> Animation</span></div>
       <button class="dash-power" id="powerBtn" type="button" aria-label="Sign out" title="Sign out">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.5a8 8 0 1 0 11.4 0"/></svg>
       </button>
@@ -173,6 +175,7 @@
 <main>
   <section class="landing-hero">
     <p class="hero-kicker">FREE 2D CARTOON ANIMATION STUDIO</p>
+    <img class="hero-logo" src="logo-badge.png" alt="Ss Animation logo">
     <h1 class="hero-title">Ss Animation</h1>
     <p class="hero-sub">Make your own cartoon videos right in your browser. Choose a character, build a scene, record your voice, animate on the timeline and export your film — no software to install.</p>
     <div class="hero-cta">
@@ -349,6 +352,16 @@
 </main>
 
 <!-- ============ EXPORT DIALOG ============ -->
+<div class="modal-backdrop" id="delModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delTitle">
+    <div class="modal-head"><h3 id="delTitle">Delete project</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
+    <p class="panel-sub" id="delText">Delete this project from this browser? This cannot be undone.</p>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-panel" data-close type="button" style="flex:1">Cancel</button>
+      <button class="btn btn-accent" id="delConfirmBtn" type="button" style="flex:1">Delete</button>
+    </div>
+  </div>
+</div>
 <div class="modal-backdrop" id="exportModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
     <div class="modal-head"><h3 id="exportTitle">Export Video</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
@@ -525,6 +538,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=14"></script>
+<script src="studio.js?v=15"></script>
 </body>
 </html>
