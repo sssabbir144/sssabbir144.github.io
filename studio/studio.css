@@ -249,3 +249,17 @@ input[type="color"] { background: var(--panel-2); border: 1px solid var(--line);
   box-shadow: 0 14px 34px rgba(0,0,0,.4); }
 .google-btn:hover { background: var(--accent); }
 body.gate-open { overflow: hidden; }
+
+/* ---------- Phase D: Character Studio + PhotoEditor workspace ---------- */
+.tl-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+#erCanvasWrap { flex-direction: column; gap: 12px; }
+.er-stage { position: relative; line-height: 0; border-radius: 8px; overflow: hidden; max-width: 100%;
+  transform-origin: center top;
+  background: repeating-conic-gradient(#2b2b2b 0% 25%, #202020 0% 50%) 0 0 / 24px 24px; }
+#erCanvas { max-width: 100%; height: auto; display: block; touch-action: none; cursor: crosshair; }
+#erGuide { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.er-hint { max-width: 660px; margin: 0; }
+.cs-body { display: flex; gap: 18px; padding: 18px; flex-wrap: wrap; align-items: flex-start; }
+.cs-preview { background: #14161a; border: 1px solid var(--line); border-radius: 12px; padding: 8px; line-height: 0; }
+.cs-controls { flex: 1; min-width: 250px; }
+.cs-controls .field input[type="color"] { width: 100%; }

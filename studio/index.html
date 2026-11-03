@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=6">
+<link rel="stylesheet" href="studio.css?v=7">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -435,22 +435,65 @@
     <div class="editor-head">
       <strong>Photo Editor — Eraser</strong>
       <div class="editor-actions">
-        <button class="btn btn-panel" type="button">Open</button>
-        <button class="btn btn-panel" type="button">Export</button>
+        <label class="btn btn-panel" style="cursor:pointer">Open
+          <input type="file" accept="image/*" id="erOpen" hidden></label>
+        <button class="btn btn-panel" id="erExportBtn" type="button">Export</button>
         <button class="btn btn-accent" id="sendToStudioBtn" type="button">Send to Studio</button>
         <button class="icon-x" id="eraserCloseBtn" type="button" aria-label="Close editor">✕</button>
       </div>
     </div>
     <div class="editor-tools" role="group" aria-label="Photo editor tools">
-      <button class="tl-btn" type="button">Selection</button>
-      <button class="tl-btn" type="button">Lasso</button>
-      <button class="tl-btn" type="button">Eraser</button>
-      <button class="tl-btn" type="button">Brush</button>
-      <label class="zoom-ctl">Colour <input type="color" value="#F5C518"></label>
-      <label class="zoom-ctl">Zoom <input type="range" min="50" max="200" value="100"></label>
+      <button class="tl-btn" data-ertool="select" type="button">Selection</button>
+      <button class="tl-btn" data-ertool="lasso" type="button">Lasso</button>
+      <button class="tl-btn active" data-ertool="eraser" type="button">Eraser</button>
+      <button class="tl-btn" data-ertool="brush" type="button">Brush</button>
+      <button class="tl-btn" data-ertool="picker" type="button">Pick Colour</button>
+      <button class="tl-btn" id="erClearSelBtn" type="button">Clear Selected Area</button>
+      <label class="zoom-ctl">Size <input type="range" id="erSize" min="4" max="90" value="28"></label>
+      <label class="zoom-ctl">Colour <input type="color" id="erColor" value="#F5C518"></label>
+      <label class="zoom-ctl">Zoom <input type="range" id="erZoom" min="40" max="220" value="100"></label>
     </div>
-    <div class="editor-canvas">
-      <p>Open an image to start erasing its background.<br><span class="muted">Send any image here from the Asset Library with “Send Image to Eraser”.</span></p>
+    <div class="editor-canvas" id="erCanvasWrap">
+      <div class="er-stage" id="erStage">
+        <canvas id="erCanvas" width="880" height="495"></canvas>
+        <canvas id="erGuide" width="880" height="495"></canvas>
+      </div>
+      <p class="er-hint" id="erHint">Open an image to start erasing its background. Eraser removes pixels (transparent); Brush paints back; Selection/Lasso + “Clear Selected Area” removes a whole region.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Character Studio overlay -->
+<div class="editor-overlay" id="charStudioOverlay" hidden>
+  <div class="editor-frame">
+    <div class="editor-head">
+      <strong>Character Studio</strong>
+      <div class="editor-actions">
+        <button class="btn btn-accent" id="csSaveBtn" type="button">Save Character</button>
+        <button class="icon-x" id="csCloseBtn" type="button" aria-label="Close character studio">✕</button>
+      </div>
+    </div>
+    <div class="cs-body">
+      <div class="cs-preview"><canvas id="csCanvas" width="300" height="360"></canvas></div>
+      <div class="cs-controls">
+        <label class="field">Character name <input type="text" id="csName" placeholder="e.g. Grandpa"></label>
+        <label class="field">Skin tone <input type="color" id="csSkin" value="#f2c094"></label>
+        <div class="field-row">
+          <label class="field">Hair style
+            <select id="csHairStyle">
+              <option value="sweep">Sweep</option><option value="short">Short</option>
+              <option value="long">Long</option><option value="bun">Bun</option>
+              <option value="cap">Cap</option><option value="tuft">Tuft</option>
+            </select></label>
+          <label class="field">Hair colour <input type="color" id="csHair" value="#3a2a1c"></label>
+        </div>
+        <div class="field-row">
+          <label class="field">Shirt / dress <input type="color" id="csShirt" value="#e74c3c"></label>
+          <label class="field">Pants <input type="color" id="csPants" value="#2d4a7a"></label>
+        </div>
+        <label class="slider-row" style="display:flex;align-items:center;gap:8px">Skirt / dress bottom <input type="checkbox" id="csSkirt" style="width:auto"></label>
+        <p class="panel-sub">Easy Mode: pick the parts, watch the preview, save — your character joins the Character panel and Media → People, ready to animate. Advanced posing lives in Anim IK.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -463,6 +506,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=6"></script>
+<script src="studio.js?v=7"></script>
 </body>
 </html>

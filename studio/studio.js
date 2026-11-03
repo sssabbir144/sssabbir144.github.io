@@ -15,12 +15,13 @@ const nid = p => p + (_uid++) + Date.now().toString(36);
 let _db = null;
 function idbOpen() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open("ssanim", 2);
+    const r = indexedDB.open("ssanim", 3);
     r.onupgradeneeded = () => {
       const d = r.result;
       if (!d.objectStoreNames.contains("projects")) d.createObjectStore("projects", { keyPath: "name" });
       if (!d.objectStoreNames.contains("assets")) d.createObjectStore("assets", { keyPath: "id" });
       if (!d.objectStoreNames.contains("library")) d.createObjectStore("library", { keyPath: "id" });
+      if (!d.objectStoreNames.contains("customChars")) d.createObjectStore("customChars", { keyPath: "name" });
     };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -192,15 +193,18 @@ function drawChar(ctx, o, ev) {
   ctx.rotate(ev.rot * Math.PI / 180);
   ctx.scale(ev.scale * (o.flip ? -1 : 1), ev.scale);
   ctx.globalAlpha = ev.op;
+  if (ev.lean) ctx.rotate(ev.lean);
   // legs + shoes (hip-pivot swing — walk cycles for sprite packs)
   const sw = ev.swing || 0;
+  const swL = ev.swingLeg !== undefined ? ev.swingLeg : sw;
+  const swA = ev.swingArm !== undefined ? ev.swingArm : sw * 0.8;
   const leg = (hx, a) => {
     ctx.save(); ctx.translate(hx, 42); ctx.rotate(a);
     ctx.fillStyle = p.pants; ctx.fillRect(-19, 0, 38, 103);
     ctx.fillStyle = "#26221f"; ctx.fillRect(-24, 100, 48, 16);
     ctx.restore();
   };
-  leg(-33, sw); leg(33, -sw);
+  leg(-33, swL); leg(33, -swL);
   // skirt
   if (p.skirt) { ctx.fillStyle = p.shirt; ctx.beginPath(); ctx.moveTo(-58, 30); ctx.lineTo(58, 30); ctx.lineTo(76, 95); ctx.lineTo(-76, 95); ctx.fill(); }
   // arms (shoulder-pivot swing, opposite to the legs)
@@ -210,10 +214,13 @@ function drawChar(ctx, o, ev) {
     ctx.fillStyle = p.skin; ctx.beginPath(); ctx.arc(0, 100, 13, 0, 7); ctx.fill();
     ctx.restore();
   };
-  arm(-71, -sw * 0.8); arm(71, sw * 0.8);
+  arm(-71, -swA); arm(71, swA);
   // torso
   ctx.fillStyle = p.shirt;
   ctx.beginPath(); ctx.roundRect(-60, -70, 120, 122, 18); ctx.fill();
+  // head group (IK head tilt pivots at the neck)
+  ctx.save();
+  ctx.translate(0, -70); ctx.rotate(ev.headTilt || 0); ctx.translate(0, 70);
   // head
   ctx.fillStyle = p.skin;
   ctx.beginPath(); ctx.arc(0, -118, 52, 0, 7); ctx.fill();
@@ -250,6 +257,7 @@ function drawChar(ctx, o, ev) {
   ctx.fillStyle = "rgba(240,120,110,.45)";
   ctx.beginPath(); ctx.arc(-34, -104, 8, 0, 7); ctx.fill();
   ctx.beginPath(); ctx.arc(34, -104, 8, 0, 7); ctx.fill();
+  ctx.restore(); // head group
   ctx.restore();
 }
 
@@ -284,8 +292,18 @@ function drawStage() {
       sctx.drawImage(bimg, (1280 - bimg.naturalWidth * s) / 2, (720 - bimg.naturalHeight * s) / 2, bimg.naturalWidth * s, bimg.naturalHeight * s);
     } else paintBG(sctx, sc.bg);
   } else paintBG(sctx, sc.bg);
+  if (sc.bgColor) {
+    sctx.save(); sctx.globalAlpha = 0.35; sctx.fillStyle = sc.bgColor;
+    sctx.fillRect(0, 0, 1280, 720); sctx.restore();
+  }
   for (const o of sc.objects) {
     const ev = evalAt(o, playT);
+    if (o.pose) {
+      ev.swingLeg = (o.pose.leg || 0) * Math.PI / 180;
+      ev.swingArm = (o.pose.arm || 0) * Math.PI / 180;
+      ev.headTilt = (o.pose.head || 0) * Math.PI / 180;
+      ev.lean = (o.pose.lean || 0) * Math.PI / 180;
+    }
     if (o.type === "char") drawChar(sctx, o, ev);
     else if (o.type === "prop") {
       sctx.save();
@@ -316,6 +334,19 @@ function drawStage() {
         sctx.drawImage(img, -(o.w / 2), -(o.h / 2), o.w, o.h);
         sctx.restore();
       }
+    }
+    if (o.outline) {
+      const { w, h } = objSize(o);
+      sctx.save();
+      sctx.translate(ev.x, ev.y); sctx.rotate(ev.rot * Math.PI / 180);
+      sctx.scale(ev.scale, ev.scale);
+      sctx.strokeStyle = "#57b7d9"; sctx.lineWidth = 2.5 / ev.scale; sctx.setLineDash([8, 6]);
+      sctx.strokeRect(-w / 2, -h / 2, w, h);
+      sctx.setLineDash([]);
+      sctx.fillStyle = "#F5C518";
+      const joints = [[0, -h * 0.42], [-w * 0.3, -h * 0.2], [w * 0.3, -h * 0.2], [-w * 0.3, h * 0.22], [w * 0.3, h * 0.22], [-w * 0.14, h * 0.08], [w * 0.14, h * 0.08], [-w * 0.14, h * 0.46], [w * 0.14, h * 0.46]];
+      for (const [jx, jy] of joints) { sctx.beginPath(); sctx.arc(jx, jy, 7 / ev.scale, 0, 7); sctx.fill(); }
+      sctx.restore();
     }
     if (o.id === selId) {
       const { w, h } = objSize(o);
@@ -521,8 +552,17 @@ function addObject(o) {
   pushHistory(); drawStage(); renderTracks();
   return o;
 }
+let CUSTOM_CHARS = {};
+function allPresets() { return { ...CHAR_PRESETS, ...CUSTOM_CHARS }; }
+async function loadCustomChars() {
+  try {
+    const rows = await idbAll("customChars");
+    CUSTOM_CHARS = {};
+    for (const r of rows) CUSTOM_CHARS[r.name] = r.params;
+  } catch { CUSTOM_CHARS = {}; }
+}
 function addCharacter(name) {
-  const p = CHAR_PRESETS[name];
+  const p = allPresets()[name];
   addObject({
     type: "char", name, params: { ...p },
     x: 640, y: 430, scale: p.baby ? 0.62 : 1, rot: 0, flip: false, op: 1
@@ -899,7 +939,7 @@ function mediaGrid() {
   if (mediaTab === 0) return `<div class="card-grid">${BG_LIST.map(b =>
     `<div class="mini-card clickable" data-bg="${b[0]}"><span class="mc-ico">🏞️</span><span class="mc-name">${b[1]}</span><span class="mc-add">Set as scene background</span></div>`).join("")}
     ${libraryItems.filter(i => i.kind === "background").map(i => libCard(i, "bg", "Set as background")).join("")}</div>`;
-  if (mediaTab === 1) return `<div class="card-grid">${Object.keys(CHAR_PRESETS).map(c =>
+  if (mediaTab === 1) return `<div class="card-grid">${Object.keys(allPresets()).map(c =>
     `<div class="mini-card clickable" data-char="${c}"><span class="mc-ico">🧑</span><span class="mc-name">${c}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}
     ${libraryItems.filter(i => i.kind === "character").map(i => libCard(i, "char", "+ Add to canvas")).join("")}</div>`;
   if (mediaTab === 2) return `<div class="card-grid">${VEHICLE_LIST.map(propCard).join("")}</div>`;
@@ -916,9 +956,13 @@ const PANELS = {
     <p class="panel-sub">Tap a character to add it to your scene. Drag it on the canvas; animate it with ◆ Keyframe.</p>
     <div class="card-grid">${Object.keys(CHAR_PRESETS).map(c =>
       `<div class="mini-card clickable" data-char="${c}"><span class="mc-ico">🧑</span><span class="mc-name">${c}</span><span class="pro-tag">MULTI PRO</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>
-    <button class="btn btn-accent panel-btn" data-pro type="button">Add New Character</button>
-    <button class="btn btn-panel panel-btn" data-pro type="button">New from Character Studio</button>
-    ${note("The full library holds 45 characters — the owner adds more over time. Creating and editing characters is a Pro feature.")}`,
+    ${Object.keys(CUSTOM_CHARS).length ? `<p class="panel-sub" style="margin-top:12px"><strong>Your characters</strong> — made in the Character Studio.</p>
+    <div class="card-grid">${Object.keys(CUSTOM_CHARS).map(c =>
+      `<div class="mini-card clickable" data-char="${c}"><span class="mc-ico">⭐</span><span class="mc-name">${c}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>` : ""}
+    <button class="btn btn-accent panel-btn" id="charStudioNewBtn" type="button">Add New Character</button>
+    <button class="btn btn-panel panel-btn" id="charStudioBtn" type="button">New from Character Studio</button>
+    <button class="btn btn-panel panel-btn" id="charEditBtn" type="button">Edit Character</button>
+    ${note("The full library holds 45 characters — the owner adds more over time. On the original, creating and editing characters is a Pro feature; here the Character Studio is open until plans activate (Phase F).")}`,
   media: () => `<h4>Media</h4>${chips(MEDIA_TABS, mediaTab)}${mediaGrid()}`,
   effect: () => {
     const fx = scene().fx || {};
@@ -949,11 +993,38 @@ const PANELS = {
     <button class="btn btn-panel panel-btn" id="fxSoundBtn" type="button">Test Rain Sound</button>
     ${note("Effects belong to this scene — switch scenes to give each one its own weather.")}`;
   },
-  studio: () => `<h4>Studio</h4>
-    <p class="panel-sub">The main Studio is where characters are built and rigged in Easy Mode and Advanced Mode.</p>
-    <div class="mini-card"><span class="mc-ico">🎬</span><span class="mc-name">Upgrade your plan to access the Studio</span></div>
-    <button class="btn btn-accent panel-btn" data-pro type="button">Get Pro</button>
-    ${note("Pro members open the full Studio: character creation, editing and rigging.")}`,
+  studio: () => {
+    const o = selObj();
+    return `<h4>Studio</h4>
+    <div class="chip-row" role="tablist">
+      <button class="chip ${studioMode === 0 ? "active" : ""}" data-studiomode="0" type="button">Easy Mode</button>
+      <button class="chip ${studioMode === 1 ? "active" : ""}" data-studiomode="1" type="button">Advanced Mode</button>
+    </div>
+    <div id="studioEasy" ${studioMode === 1 ? "hidden" : ""}>
+      <p class="panel-sub">One tap builds a ready scene — background, characters and mood together. Adjust anything afterwards.</p>
+      <button class="btn btn-accent panel-btn" data-template="village" type="button">🌅 Village Morning</button>
+      <button class="btn btn-panel panel-btn" data-template="rain" type="button">🌧️ Rainy Day</button>
+      <button class="btn btn-panel panel-btn" data-template="class" type="button">🏫 Classroom Talk</button>
+      <button class="btn btn-panel panel-btn" data-template="river" type="button">🏞️ River Picnic</button>
+      <button class="btn btn-panel panel-btn" data-template="walkin" type="button">🚶 Walk-In Entrance</button>
+    </div>
+    <div id="studioAdv" ${studioMode === 0 ? "hidden" : ""}>
+      <p class="panel-sub">${o ? `Selected: <strong>${o.name}</strong> — precise numbers, no dragging.` : "Select an object on the canvas to edit its numbers here."}</p>
+      <div class="field-row">
+        <label class="field">X <input type="number" id="advX" value="${o ? Math.round(o.x) : 0}" step="5"></label>
+        <label class="field">Y <input type="number" id="advY" value="${o ? Math.round(o.y) : 0}" step="5"></label>
+      </div>
+      <div class="field-row">
+        <label class="field">Scale % <input type="number" id="advScale" value="${o ? Math.round(o.scale * 100) : 100}" step="5" min="10" max="400"></label>
+        <label class="field">Rotation ° <input type="number" id="advRot" value="${o ? Math.round(o.rot) : 0}" step="5"></label>
+      </div>
+      <label class="field">Opacity % <input type="number" id="advOp" value="${o ? Math.round(o.op * 100) : 100}" step="5" min="5" max="100"></label>
+      <label class="field">Scene length (seconds) <input type="number" id="advDur" value="${scene().duration}" step="1" min="1" max="120"></label>
+      <label class="field">Scene colour wash <input type="color" id="advWash" value="${scene().bgColor || "#f5c518"}"></label>
+      <button class="btn btn-panel panel-btn" id="advWashClear" type="button">Clear Colour Wash</button>
+    </div>
+    ${note("On the original the Studio is Pro-gated; here it is open until plans activate (Phase F). Character building lives in Character → Character Studio (Easy) and posing in Anim IK (Advanced).")}`;
+  },
   assets: () => `<h4>Asset Library</h4>
     <p class="panel-sub">49 props for your scenes — tap to add. 🔒 Pro assets unlock with a plan.</p>
     ${libraryItems.length ? `<p class="panel-sub"><strong>Owner's library</strong> — also under Media, by kind.</p>
@@ -992,14 +1063,25 @@ const PANELS = {
     <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Upload Audio
       <input type="file" accept="audio/*" id="audioUpload" hidden></label>
     <div id="audioOut"></div>`,
-  ik: () => `<h4>Anim IK</h4>
-    <p class="panel-sub">Turn any 2D character image into an animated puppet with IK joints.</p>
+  ik: () => {
+    const o = selObj();
+    const pose = (o && o.pose) || { arm: 0, leg: 0, head: 0, lean: 0 };
+    return `<h4>Anim IK</h4>
+    <p class="panel-sub">Turn any 2D character image into an animated puppet with IK joints, and pose built-in characters joint by joint.</p>
     <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">Add 2D Character Image
       <input type="file" accept="image/*" data-upload hidden></label>
     <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Add Full Body Image
       <input type="file" accept="image/*" data-upload hidden></label>
-    <p class="panel-sub" style="margin-top:12px"><strong>IK joints</strong> — Head · Neck · Shoulder L/R · Elbow L/R · Hand L/R · Hip L/R · Knee L/R · Foot L/R. Draw the body outline to finish the rig.</p>
-    ${note("Anim IK is a Pro feature in Advanced Mode.")}`,
+    <p class="panel-sub" style="margin-top:12px"><strong>IK joints</strong> — Head · Neck · Shoulder L/R · Elbow L/R · Hand L/R · Hip L/R · Knee L/R · Foot L/R.</p>
+    <p class="panel-sub">${o && o.type === "char" ? `Posing: <strong>${o.name}</strong>` : "Select a character on the canvas to pose it."}</p>
+    <label class="slider-row">Arm swing <input type="range" id="ikArm" min="-70" max="70" value="${pose.arm || 0}"></label>
+    <label class="slider-row">Leg swing <input type="range" id="ikLeg" min="-70" max="70" value="${pose.leg || 0}"></label>
+    <label class="slider-row">Head tilt <input type="range" id="ikHead" min="-40" max="40" value="${pose.head || 0}"></label>
+    <label class="slider-row">Body lean <input type="range" id="ikLean" min="-30" max="30" value="${pose.lean || 0}"></label>
+    <button class="btn btn-panel panel-btn" id="ikOutlineBtn" type="button">${o && o.outline ? "Hide Body Outline" : "Draw Body Outline"}</button>
+    <button class="btn btn-panel panel-btn" id="ikResetBtn" type="button">Reset Pose</button>
+    ${note("On the original, Anim IK is a Pro feature in Advanced Mode; here it is open until plans activate (Phase F).")}`;
+  },
   eraser: () => `<h4>Eraser</h4>
     <p class="panel-sub">Remove backgrounds and clean up images in the Photo Editor.</p>
     <button class="btn btn-accent panel-btn" id="openEraserBtn" type="button">Open Photo Editor</button>`,
@@ -1053,6 +1135,9 @@ function wirePanel() {
   }));
   wireLibrary();
   wireFx();
+  wireCharStudio();
+  wireIk();
+  wireStudioTool();
   $$("[data-upload]", panel).forEach(inp => inp.addEventListener("change", () => {
     const f = inp.files && inp.files[0]; if (f) addImageFile(f).catch(() => setNote("That image could not be added."));
   }));
@@ -1061,7 +1146,15 @@ function wirePanel() {
     else { $$(".chip", panel).forEach(x => x.classList.remove("active")); c.classList.add("active"); }
   }));
   const ms = $("#mediaSoundsBtn"); if (ms) ms.addEventListener("click", () => selectTool("sounds"));
-  const se = $("#sendEraserBtn"); if (se) se.addEventListener("click", openEraser);
+  const se = $("#sendEraserBtn"); if (se) se.addEventListener("click", async () => {
+    const o = selObj();
+    if (o && o.type === "image") {
+      const rec = await idbGet("assets", o.assetId);
+      if (rec && rec.blob) { openEraser(rec.blob); return; }
+    }
+    openEraser();
+    setNote("Photo Editor open — use Open to load an image, or select an image on the canvas first and use Send Image to Eraser.");
+  });
   const oe = $("#openEraserBtn"); if (oe) oe.addEventListener("click", openEraser);
   const oc = $("#openCinemaBtn"); if (oc) oc.addEventListener("click", () => openModal("#cinemaModal"));
   const rb = $("#recordBtn");
@@ -1151,6 +1244,106 @@ function wireLibrary() {
       selectTool("assets");
       setNote(`Imported ${n} asset(s) into the owner's library.`);
     } catch { setNote("That backup file could not be read."); }
+  });
+}
+/* ---------------- Anim IK wiring ---------------- */
+function wireIk() {
+  if (!$("#ikArm")) return;
+  const bind = (id, key) => {
+    const el = $("#" + id);
+    el.addEventListener("input", () => {
+      const o = selObj();
+      if (!o || o.type !== "char") { setNote("Select a character on the canvas first — IK poses characters."); return; }
+      o.pose = o.pose || { arm: 0, leg: 0, head: 0, lean: 0 };
+      o.pose[key] = +el.value;
+      drawStage();
+    });
+    el.addEventListener("change", () => pushHistory());
+  };
+  bind("ikArm", "arm"); bind("ikLeg", "leg"); bind("ikHead", "head"); bind("ikLean", "lean");
+  $("#ikOutlineBtn").addEventListener("click", () => {
+    const o = selObj();
+    if (!o) { setNote("Select an object on the canvas first."); return; }
+    o.outline = !o.outline;
+    pushHistory(); drawStage(); selectTool("ik");
+    setNote(o.outline ? "Body outline and joint points are drawn on the canvas." : "Body outline hidden.");
+  });
+  $("#ikResetBtn").addEventListener("click", () => {
+    const o = selObj();
+    if (!o || o.type !== "char") { setNote("Select a character on the canvas first."); return; }
+    o.pose = { arm: 0, leg: 0, head: 0, lean: 0 };
+    pushHistory(); drawStage(); selectTool("ik");
+    setNote(`${o.name} is standing straight again.`);
+  });
+}
+/* ---------------- Main Studio tool wiring ---------------- */
+let studioMode = 0;
+function placeChar(name, x, y, s) {
+  addCharacter(name);
+  const o = selObj();
+  if (o) { o.x = x; o.y = y; if (s) o.scale = s; }
+  return o;
+}
+function applyTemplate(kind) {
+  const sc = scene();
+  if (kind === "village") {
+    sc.bg = "village"; sc.bgAsset = null;
+    placeChar("Hero Boy", 430, 440); placeChar("Hero Girl", 850, 440);
+    setNote("Village Morning built — a boy and a girl in the village. Press Play or add keyframes.");
+  } else if (kind === "rain") {
+    sc.bg = "village"; sc.bgAsset = null;
+    sc.fx = sc.fx || {};
+    sc.fx.rain = { intensity: 65, speed: 55, wind: 25, opacity: 85, splash: true };
+    placeChar("Hero Boy", 640, 440);
+    setNote("Rainy Day built — rain is falling on this scene (Effect panel fine-tunes it).");
+  } else if (kind === "class") {
+    sc.bg = "school"; sc.bgAsset = null;
+    placeChar("Teacher", 470, 440); placeChar("Hero Boy", 880, 450, 0.9);
+    setNote("Classroom Talk built — teacher and student ready.");
+  } else if (kind === "river") {
+    sc.bg = "river"; sc.bgAsset = null;
+    sc.fx = sc.fx || {};
+    sc.fx.river = { flow: 50, width: 60, angle: 50, color1: "#57b7d9", color2: "#2e6da0" };
+    placeChar("Mother", 470, 420); placeChar("Hero Boy", 830, 430, 0.9);
+    setNote("River Picnic built — the river is flowing (Effect panel fine-tunes it).");
+  } else if (kind === "walkin") {
+    const o = placeChar("Hero Boy", 150, 440);
+    if (o) {
+      const d = Math.max(2, sc.duration * 0.6);
+      o.keys = [
+        { t: 0, x: 150, y: 440, scale: o.scale, rot: 0, op: 1 },
+        { t: +d.toFixed(2), x: 640, y: 440, scale: o.scale, rot: 0, op: 1 }
+      ];
+      playT = 0;
+      setNote("Walk-In Entrance built — press Play and he walks to the centre.");
+    }
+  }
+  pushHistory(); drawStage(); renderTracks(); ensureFxLoop();
+}
+function wireStudioTool() {
+  $$("[data-studiomode]").forEach(b => b.addEventListener("click", () => {
+    studioMode = +b.dataset.studiomode;
+    selectTool("studio");
+  }));
+  $$("[data-template]").forEach(b => b.addEventListener("click", () => applyTemplate(b.dataset.template)));
+  const adv = (id, fn) => {
+    const el = $("#" + id);
+    if (!el) return;
+    el.addEventListener("input", () => { fn(el); drawStage(); });
+    el.addEventListener("change", () => { pushHistory(); renderTracks(); });
+  };
+  adv("advX", el => { const o = selObj(); if (o) o.x = +el.value || 0; });
+  adv("advY", el => { const o = selObj(); if (o) o.y = +el.value || 0; });
+  adv("advScale", el => { const o = selObj(); if (o) o.scale = clamp((+el.value || 100) / 100, 0.1, 4); });
+  adv("advRot", el => { const o = selObj(); if (o) o.rot = +el.value || 0; });
+  adv("advOp", el => { const o = selObj(); if (o) o.op = clamp((+el.value || 100) / 100, 0.05, 1); });
+  adv("advDur", el => { scene().duration = clamp(+el.value || 5, 1, 120); });
+  adv("advWash", el => { scene().bgColor = el.value; });
+  const wc = $("#advWashClear");
+  if (wc) wc.addEventListener("click", () => {
+    scene().bgColor = null;
+    pushHistory(); drawStage(); selectTool("studio");
+    setNote("Colour wash cleared.");
   });
 }
 /* ---------------- Effects wiring ---------------- */
@@ -1278,13 +1471,146 @@ $("#paySubmitBtn").addEventListener("click", () => {
   $("#payNote").textContent = "Received — thank you! We verify payments by hand and activate Pro within a few minutes to 24 hours.";
 });
 
-/* ---------------- Eraser overlay ---------------- */
-function openEraser() { $("#eraserOverlay").hidden = false; }
+/* ---------------- Eraser PhotoEditor (real engine) ---------------- */
+const er = { tool: "eraser", drawing: false, sel: null, lasso: [], last: null, has: false };
+function erCtxs() { return { main: $("#erCanvas").getContext("2d"), guide: $("#erGuide").getContext("2d") }; }
+function erPos(e) {
+  const r = $("#erCanvas").getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * $("#erCanvas").width / r.width,
+    y: (e.clientY - r.top) * $("#erCanvas").height / r.height
+  };
+}
+function erLoadBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const maxW = 1100, maxH = 640;
+    const s = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+    const w = Math.max(2, Math.round(img.naturalWidth * s)), h = Math.max(2, Math.round(img.naturalHeight * s));
+    for (const id of ["erCanvas", "erGuide"]) { const c = $("#" + id); c.width = w; c.height = h; }
+    erCtxs().main.drawImage(img, 0, 0, w, h);
+    er.has = true; er.sel = null; er.lasso = [];
+    $("#erHint").textContent = "Image loaded — erase the background, then Send to Studio or Export the transparent PNG.";
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+function openEraser(withBlob) {
+  $("#eraserOverlay").hidden = false;
+  if (withBlob) erLoadBlob(withBlob);
+}
 $("#eraserCloseBtn").addEventListener("click", () => { $("#eraserOverlay").hidden = true; });
+$("#erOpen").addEventListener("change", (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) erLoadBlob(f);
+});
+$$("[data-ertool]").forEach(b => b.addEventListener("click", () => {
+  er.tool = b.dataset.ertool;
+  $$("[data-ertool]").forEach(x => x.classList.toggle("active", x === b));
+}));
+$("#erZoom").addEventListener("input", (e) => {
+  $("#erStage").style.transform = `scale(${e.target.value / 100})`;
+});
+function erGuideDraw() {
+  const { guide } = erCtxs();
+  const c = $("#erGuide");
+  guide.clearRect(0, 0, c.width, c.height);
+  guide.strokeStyle = "#F5C518"; guide.lineWidth = 2; guide.setLineDash([7, 5]);
+  if (er.sel) guide.strokeRect(er.sel.x, er.sel.y, er.sel.w, er.sel.h);
+  if (er.lasso.length > 1) {
+    guide.beginPath();
+    guide.moveTo(er.lasso[0][0], er.lasso[0][1]);
+    for (const p of er.lasso.slice(1)) guide.lineTo(p[0], p[1]);
+    guide.closePath(); guide.stroke();
+  }
+  guide.setLineDash([]);
+}
+(function erBind() {
+  const cv = $("#erCanvas");
+  const stamp = (p) => {
+    const { main } = erCtxs();
+    const size = +$("#erSize").value;
+    main.save();
+    if (er.tool === "eraser") {
+      main.globalCompositeOperation = "destination-out";
+      main.beginPath(); main.arc(p.x, p.y, size / 2, 0, 7); main.fill();
+    } else if (er.tool === "brush") {
+      main.globalCompositeOperation = "source-over";
+      main.fillStyle = $("#erColor").value;
+      main.beginPath(); main.arc(p.x, p.y, size / 2, 0, 7); main.fill();
+    }
+    main.restore();
+  };
+  cv.addEventListener("pointerdown", (e) => {
+    if (!er.has) return;
+    const p = erPos(e);
+    cv.setPointerCapture(e.pointerId);
+    if (er.tool === "picker") {
+      const d = erCtxs().main.getImageData(Math.max(0, Math.min(cv.width - 1, Math.round(p.x))), Math.max(0, Math.min(cv.height - 1, Math.round(p.y))), 1, 1).data;
+      const hex = "#" + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, "0")).join("");
+      $("#erColor").value = hex;
+      setNote(`Colour picked: ${hex} — the Brush now paints with it.`);
+      return;
+    }
+    er.drawing = true; er.last = p;
+    if (er.tool === "select") { er.sel = { x: p.x, y: p.y, w: 0, h: 0 }; erGuideDraw(); }
+    else if (er.tool === "lasso") { er.lasso = [[p.x, p.y]]; erGuideDraw(); }
+    else stamp(p);
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (!er.drawing || !er.has) return;
+    const p = erPos(e);
+    if (er.tool === "select" && er.sel) {
+      er.sel.w = p.x - er.sel.x; er.sel.h = p.y - er.sel.y; erGuideDraw();
+    } else if (er.tool === "lasso") {
+      er.lasso.push([p.x, p.y]); erGuideDraw();
+    } else if (er.tool === "eraser" || er.tool === "brush") {
+      const dx = p.x - er.last.x, dy = p.y - er.last.y;
+      const steps = Math.max(1, Math.floor(Math.hypot(dx, dy) / 6));
+      for (let i = 1; i <= steps; i++) stamp({ x: er.last.x + dx * i / steps, y: er.last.y + dy * i / steps });
+      er.last = p;
+    }
+  });
+  const end = () => { er.drawing = false; };
+  cv.addEventListener("pointerup", end);
+  cv.addEventListener("pointercancel", end);
+})();
+$("#erClearSelBtn").addEventListener("click", () => {
+  if (!er.has) return;
+  const { main, guide } = erCtxs();
+  main.save();
+  main.globalCompositeOperation = "destination-out";
+  if (er.lasso.length > 2) {
+    main.beginPath();
+    main.moveTo(er.lasso[0][0], er.lasso[0][1]);
+    for (const p of er.lasso.slice(1)) main.lineTo(p[0], p[1]);
+    main.closePath(); main.fill();
+  } else if (er.sel) {
+    main.fillRect(er.sel.x, er.sel.y, er.sel.w, er.sel.h);
+  }
+  main.restore();
+  er.sel = null; er.lasso = [];
+  guide.clearRect(0, 0, $("#erGuide").width, $("#erGuide").height);
+  setNote("Selected area cleared to transparent.");
+});
+$("#erExportBtn").addEventListener("click", () => {
+  if (!er.has) { setNote("Open an image first."); return; }
+  $("#erCanvas").toBlob((b) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = "ss-animation-erased.png";
+    a.click();
+    setNote("Exported as a transparent PNG.");
+  }, "image/png");
+});
 $("#sendToStudioBtn").addEventListener("click", () => {
-  $("#eraserOverlay").hidden = true;
-  setNote("Image sent to the Studio canvas.");
-  selectTool("media");
+  if (!er.has) { $("#eraserOverlay").hidden = true; return; }
+  $("#erCanvas").toBlob(async (b) => {
+    $("#eraserOverlay").hidden = true;
+    await addImageFile(b);
+    setNote("Edited image sent to the Studio canvas.");
+  }, "image/png");
 });
 
 /* ---------------- Dashboard (first interface) ---------------- */
@@ -1328,6 +1654,66 @@ $("#newProjBtn").addEventListener("click", newProject);
 $("#createProjBtn").addEventListener("click", newProject);
 $("#projSearch").addEventListener("input", (e) => renderDashboard(e.target.value));
 
+/* ---------------- Character Studio ---------------- */
+let csTargetId = null;
+function csParams() {
+  return {
+    skin: $("#csSkin").value, hair: $("#csHair").value, hairStyle: $("#csHairStyle").value,
+    shirt: $("#csShirt").value, pants: $("#csPants").value, skirt: $("#csSkirt").checked,
+    cap: "#24457a"
+  };
+}
+function csDraw() {
+  const c = $("#csCanvas"), x = c.getContext("2d");
+  x.clearRect(0, 0, 300, 360);
+  const g = x.createLinearGradient(0, 0, 0, 360);
+  g.addColorStop(0, "#2a2f38"); g.addColorStop(1, "#1a1d22");
+  x.fillStyle = g; x.fillRect(0, 0, 300, 360);
+  drawChar(x, { params: csParams(), flip: false }, { x: 150, y: 316, scale: 0.86, rot: 0, op: 1, swing: 0 });
+}
+function openCharStudio(params, name, targetId) {
+  csTargetId = targetId || null;
+  const p = params || { skin: "#f2c094", hair: "#3a2a1c", hairStyle: "sweep", shirt: "#e74c3c", pants: "#2d4a7a", skirt: false };
+  $("#csName").value = name || "";
+  $("#csSkin").value = p.skin; $("#csHair").value = p.hair;
+  $("#csHairStyle").value = p.hairStyle || "sweep";
+  $("#csShirt").value = p.shirt; $("#csPants").value = p.pants;
+  $("#csSkirt").checked = !!p.skirt;
+  $("#charStudioOverlay").hidden = false;
+  csDraw();
+}
+function closeCharStudio() { $("#charStudioOverlay").hidden = true; csTargetId = null; }
+["csSkin", "csHair", "csHairStyle", "csShirt", "csPants", "csSkirt"].forEach(id => {
+  document.addEventListener("input", (e) => { if (e.target && e.target.id === id) csDraw(); });
+});
+$("#csCloseBtn").addEventListener("click", closeCharStudio);
+$("#csSaveBtn").addEventListener("click", async () => {
+  const name = $("#csName").value.trim();
+  if (!name) { $("#csName").focus(); setNote("Give your character a name first."); return; }
+  const params = csParams();
+  await idbPut("customChars", { name, params, at: Date.now() });
+  CUSTOM_CHARS[name] = params;
+  if (csTargetId) {
+    const o = selObj();
+    if (o && o.id === csTargetId && o.type === "char") { o.params = { ...params }; o.name = name; }
+  }
+  closeCharStudio();
+  pushHistory(); drawStage(); renderTracks();
+  if (!$("#toolPanel").hidden) selectTool("character");
+  setNote(`“${name}” saved — find it under Character → Your characters.`);
+});
+function wireCharStudio() {
+  const nb = $("#charStudioNewBtn");
+  if (!nb) return;
+  nb.addEventListener("click", () => openCharStudio(null, "", null));
+  $("#charStudioBtn").addEventListener("click", () => openCharStudio(null, "", null));
+  $("#charEditBtn").addEventListener("click", () => {
+    const o = selObj();
+    if (o && o.type === "char") openCharStudio(o.params, o.name, o.id);
+    else setNote("Select a character on the canvas first, then Edit Character.");
+  });
+}
+
 /* ---------------- Login landing (entrance) ----------------
    Interface now; real Google sign-in activates with Firebase (Phase F).
    Until then the button enters the studio without blocking anyone. */
@@ -1343,6 +1729,7 @@ $("#googleGateBtn").addEventListener("click", () => {
 
 /* ---------------- Init + PWA ---------------- */
 loadLibrary();
+loadCustomChars();
 selectTool("character");
 renderDashboard("");
 ensureFxLoop();
