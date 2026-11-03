@@ -395,18 +395,32 @@ $("#objDel").addEventListener("click", () => {
 
 /* ---------------- Undo / redo ---------------- */
 let history = [], hIdx = -1;
+let autoT = null, restoring = false;
 function pushHistory() {
   history = history.slice(0, hIdx + 1);
   history.push(JSON.stringify(project));
   if (history.length > 60) history.shift();
   hIdx = history.length - 1;
+  if (!restoring) { clearTimeout(autoT); autoT = setTimeout(autoSave, 1200); }
+}
+async function autoSave() {
+  try {
+    project.name = $("#projectName").value.trim() || "Untitled Project";
+    const all = await idbAll("projects");
+    if (!all.some(p => p.name === project.name) && all.length >= 2) return; // Free limit: no silent 3rd project
+    await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now() });
+    localStorage.setItem("ssanim_last", project.name);
+    renderDashboard($("#projSearch") ? $("#projSearch").value : "");
+  } catch { /* storage unavailable — manual save still offered */ }
 }
 function restoreHistory(json) {
+  restoring = true;
   project = JSON.parse(json);
   curScene = clamp(curScene, 0, project.scenes.length - 1);
   selId = null; playT = 0;
   $("#projectName").value = project.name;
   renderScenes(); renderTracks(); drawStage(); drawPlayhead();
+  restoring = false;
 }
 $("#undoBtn").addEventListener("click", () => {
   if (hIdx <= 0) { setNote("Nothing to undo yet."); return; }
@@ -610,6 +624,7 @@ async function saveProject() {
   await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now() });
   localStorage.setItem("ssanim_last", project.name);
   setNote(`Project “${project.name}” saved in this browser.`);
+  renderDashboard("");
 }
 $("#saveProjectBtn").addEventListener("click", () => saveProject().catch(() => setNote("Save failed — browser storage is unavailable.")));
 async function loadProject(name) {
@@ -846,7 +861,10 @@ $("#exportBtn").addEventListener("click", () => openModal("#exportModal"));
 $("#renderBtn").addEventListener("click", () => {
   $("#exportNote").textContent = "Your project is saved and ready — the video rendering engine switches on in the export update.";
 });
-$("#profileBtn").addEventListener("click", () => openModal("#profileModal"));
+$("#profileBtn").addEventListener("click", () => {
+  renderDashboard("");
+  $("#dashboard").scrollIntoView({ behavior: "smooth" });
+});
 $("#googleSignInBtn").addEventListener("click", () => {
   setNote("Google sign-in switches on with cloud accounts (Pro update). Your projects are safe in this browser until then.");
   closeModal($("#profileModal"));
@@ -892,8 +910,50 @@ $("#sendToStudioBtn").addEventListener("click", () => {
   selectTool("media");
 });
 
+/* ---------------- Dashboard (first interface) ---------------- */
+async function renderDashboard(filter) {
+  const listEl = $("#projList"), emptyEl = $("#projEmpty");
+  if (!listEl) return;
+  let all = [];
+  try { all = (await idbAll("projects")).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)); } catch { all = []; }
+  $("#projCount").textContent = `(${all.length})`;
+  const f = (filter || "").trim().toLowerCase();
+  const shown = f ? all.filter(p => p.name.toLowerCase().includes(f)) : all;
+  emptyEl.style.display = all.length ? "none" : "";
+  listEl.innerHTML = shown.map(p =>
+    `<div class="dash-proj-item"><span class="pi-ico">🎞</span>
+       <span class="pi-meta"><span class="pi-name">${p.name}</span>
+       <span class="pi-sub">${(p.scenes || []).length} scene(s) · saved ${new Date(p.savedAt || Date.now()).toLocaleString()}</span></span>
+       <button class="btn btn-panel" data-dash-open="${p.name}" type="button" style="padding:7px 14px;font-size:13px">Open</button>
+     </div>`).join("")
+    + (f && !shown.length && all.length ? `<p class="panel-note">No projects match “${filter}”.</p>` : "");
+  $$("[data-dash-open]", listEl).forEach(b => b.addEventListener("click", async () => {
+    if (await loadProject(b.dataset.dashOpen)) {
+      $("#studioApp").scrollIntoView({ behavior: "smooth" });
+      setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
+    }
+  }));
+}
+function newProject() {
+  stopPlayback();
+  project = freshProject();
+  curScene = 0; selId = null; playT = 0;
+  $("#projectName").value = project.name;
+  history = []; hIdx = -1; pushHistory();
+  renderScenes(); renderTracks(); drawStage(); drawPlayhead();
+  $("#studioApp").scrollIntoView({ behavior: "smooth" });
+  setNote("New project started — it auto-saves here as you work.");
+}
+$("#payNowBtn").addEventListener("click", () => openPro());
+$("#powerBtn").addEventListener("click", () =>
+  setNote("You are using Ss Animation in this browser — accounts and sign-out arrive with the cloud update."));
+$("#newProjBtn").addEventListener("click", newProject);
+$("#createProjBtn").addEventListener("click", newProject);
+$("#projSearch").addEventListener("input", (e) => renderDashboard(e.target.value));
+
 /* ---------------- Init + PWA ---------------- */
 selectTool("character");
+renderDashboard("");
 renderScenes(); renderTracks(); drawStage(); pushHistory();
 (async () => {
   try {
