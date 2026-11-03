@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=7">
+<link rel="stylesheet" href="studio.css?v=8">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -202,6 +202,7 @@
           <button class="mode-btn" id="modeAdvanced" type="button">Advanced Mode</button>
         </div>
         <div class="app-actions">
+          <span class="net-badge" id="netBadge" title="The studio works offline — projects live in this browser">● Online</span>
           <button class="btn btn-accent" id="getProBtn" type="button">Get Pro</button>
           <button class="btn btn-panel" id="saveProjectBtn" type="button">Save Project</button>
           <button class="btn btn-panel" id="exportBtn" type="button">Export Video</button>
@@ -348,17 +349,27 @@
       <label class="field">Format
         <select id="exportFormat"><option selected>MP4</option><option>WebM</option></select></label>
       <label class="field">Quality
-        <select id="exportQuality"><option>Low (480p)</option><option selected>Medium (720p)</option><option disabled>High (1080p) — Pro</option><option disabled>4K — Pro</option></select></label>
+        <select id="exportQuality"><option>Low (480p)</option><option selected>Medium (720p)</option><option>High (1080p)</option><option disabled>4K — Pro</option></select></label>
     </div>
     <div class="field-row">
       <label class="field">FPS
-        <select id="exportFps"><option selected>24 FPS</option><option disabled>30 FPS — Pro</option><option disabled>60 FPS — Pro</option></select></label>
-      <label class="field">Duration <input type="text" value="02:00" readonly></label>
+        <select id="exportFps"><option selected>24 FPS</option><option>30 FPS</option><option disabled>60 FPS — Pro</option></select></label>
+      <label class="field">Duration <input type="text" id="exportDuration" value="00:00" readonly></label>
     </div>
     <label class="field switch-field">Watermark
       <span class="switch-note">Free plan exports include the Ss Animation watermark. Pro removes it.</span>
-      <input type="checkbox" id="exportWatermark" checked disabled>
+      <input type="checkbox" id="exportWatermark" checked>
     </label>
+    <div id="expProgress" hidden>
+      <div class="exp-bar"><div class="exp-fill" id="expFill"></div></div>
+      <p class="modal-note" id="expStatus">Preparing…</p>
+      <button class="btn btn-panel" id="expCancelBtn" type="button">Cancel Render</button>
+    </div>
+    <div id="expResult" hidden>
+      <video id="expVideo" controls playsinline style="width:100%;border-radius:10px;background:#000"></video>
+      <p class="modal-note" id="expMeta"></p>
+      <a class="btn btn-accent" id="expDownload" href="#" download style="display:inline-block;text-decoration:none">Download Video</a>
+    </div>
     <p class="modal-note" id="exportNote"></p>
     <div class="modal-actions">
       <button class="btn btn-panel" data-close type="button">Cancel</button>
@@ -506,6 +517,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=7"></script>
+<script src="studio.js?v=8"></script>
 </body>
 </html>

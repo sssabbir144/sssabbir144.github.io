@@ -263,3 +263,10 @@ body.gate-open { overflow: hidden; }
 .cs-preview { background: #14161a; border: 1px solid var(--line); border-radius: 12px; padding: 8px; line-height: 0; }
 .cs-controls { flex: 1; min-width: 250px; }
 .cs-controls .field input[type="color"] { width: 100%; }
+
+/* ---------- Phase E: export progress + connection badge ---------- */
+.exp-bar { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; height: 12px; overflow: hidden; margin: 12px 0 4px; }
+.exp-fill { background: var(--accent); height: 100%; width: 0; border-radius: 999px; transition: width .25s ease; }
+#expProgress .btn { margin-top: 6px; }
+.net-badge { font-size: 12px; font-weight: 700; color: #7dd87d; white-space: nowrap; }
+.net-badge.off { color: var(--accent); }

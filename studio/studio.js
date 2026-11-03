@@ -1427,9 +1427,292 @@ $$(".modal-backdrop").forEach(m => {
   m.addEventListener("click", (e) => { if (e.target === m) closeModal(m); });
   $$("[data-close]", m).forEach(b => b.addEventListener("click", () => closeModal(m)));
 });
-$("#exportBtn").addEventListener("click", () => openModal("#exportModal"));
-$("#renderBtn").addEventListener("click", () => {
-  $("#exportNote").textContent = "Your project is saved and ready — the video rendering engine switches on in the export update.";
+/* ---------------- Export engine (Phase E) ----------------
+   Frames are drawn by the real stage renderer at export resolution.
+   MP4: ffmpeg.wasm, loaded on demand and cached for offline reuse.
+   Fallback: MediaRecorder WebM in real time — always labelled honestly. */
+let exporting = false, exportCancel = false, ffInstance = null, ffBusy = false;
+const sleepE = (ms) => new Promise(r => setTimeout(r, ms));
+function totalDuration() { return project.scenes.reduce((a, s) => a + (s.duration || 0), 0); }
+function setExpStatus(t) { $("#expStatus").textContent = t; }
+function setExpProgress(p, t) {
+  $("#expFill").style.width = Math.round(clamp(p, 0, 1) * 100) + "%";
+  if (t) setExpStatus(t);
+}
+function drawWatermark() {
+  sctx.save();
+  sctx.font = "700 30px Archivo, sans-serif";
+  sctx.textAlign = "right";
+  sctx.shadowColor = "rgba(0,0,0,.55)"; sctx.shadowBlur = 6;
+  sctx.fillStyle = "rgba(255,255,255,.78)";
+  sctx.fillText("Ss Animation", 1242, 690);
+  sctx.restore();
+}
+async function runFrames({ fps, k, wm, onStart, onScene, onFrame, onFinish }) {
+  const prev = { scene: curScene, t: playT, sel: selId };
+  stopPlayback();
+  selId = null;
+  stageEl.width = Math.round(1280 * k);
+  stageEl.height = Math.round(720 * k);
+  const total = Math.max(1, Math.round(totalDuration() * fps));
+  let idx = 0, ok = true;
+  try {
+    if (onStart) await onStart();
+    for (let i = 0; i < project.scenes.length && ok; i++) {
+      curScene = i;
+      if (onScene) onScene(i);
+      const frames = Math.max(1, Math.round((project.scenes[i].duration || 0) * fps));
+      for (let f = 0; f < frames; f++) {
+        if (exportCancel) { ok = false; break; }
+        playT = f / fps;
+        sctx.setTransform(k, 0, 0, k, 0, 0);
+        drawStage();
+        if (wm) drawWatermark();
+        idx++;
+        setExpProgress(idx / total * 0.9, `Rendering frame ${idx} of ${total}…`);
+        const cont = await onFrame(idx, total);
+        if (cont === false) { ok = false; break; }
+      }
+    }
+  } finally {
+    if (onFinish) { try { await onFinish(); } catch { /* ignore */ } }
+    stageEl.width = 1280; stageEl.height = 720;
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    curScene = prev.scene; playT = prev.t; selId = prev.sel;
+    renderScenes(); renderTracks(); drawStage();
+  }
+  return ok;
+}
+async function collectVoices() {
+  const out = [];
+  let start = 0;
+  for (let i = 0; i < project.scenes.length; i++) {
+    const sc = project.scenes[i];
+    if (sc.voiceAssetId) {
+      const rec = await idbGet("assets", sc.voiceAssetId).catch(() => null);
+      if (rec && rec.blob) out.push({ index: i, start, blob: rec.blob });
+    }
+    start += sc.duration || 0;
+  }
+  return out;
+}
+function voiceExt(blob) {
+  const t = blob.type || "";
+  if (t.includes("mp4")) return "m4a";
+  if (t.includes("mpeg")) return "mp3";
+  if (t.includes("ogg")) return "ogg";
+  if (t.includes("wav")) return "wav";
+  return "webm";
+}
+async function validCore(blob, kind) {
+  if (!blob) return false;
+  if (kind === "wasm") {
+    if (blob.size < 1000000) return false;
+    const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    return head[0] === 0 && head[1] === 0x61 && head[2] === 0x73 && head[3] === 0x6d;
+  }
+  return blob.size > 50000;
+}
+async function fetchCore(url, kind) {
+  let cache = null;
+  try { cache = await caches.open("ssanim-ffmpeg-v1"); } catch { cache = null; }
+  if (cache) {
+    const hit = await cache.match(url);
+    if (hit && await validCore(await hit.clone().blob(), kind)) return hit.blob();
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("engine download failed");
+  const blob = await res.blob();
+  if (!(await validCore(blob, kind))) throw new Error("engine file invalid");
+  if (cache) { try { await cache.put(url, new Response(blob.slice(0))); } catch { /* ignore */ } }
+  return blob;
+}
+async function loadFFmpeg() {
+  if (ffInstance) return ffInstance;
+  if (!window.FFmpegWASM) {
+    await new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js";
+      s.onload = res; s.onerror = () => rej(new Error("engine script failed"));
+      document.head.appendChild(s);
+    });
+  }
+  const base = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/";
+  const [coreJS, coreWasm] = await Promise.all([
+    fetchCore(base + "ffmpeg-core.js", "js"),
+    fetchCore(base + "ffmpeg-core.wasm", "wasm")
+  ]);
+  const ff = new FFmpegWASM.FFmpeg();
+  ff.on("progress", ({ progress }) => {
+    if (exporting && ffBusy) setExpProgress(0.9 + clamp(progress, 0, 1) * 0.1, "Encoding MP4…");
+  });
+  await ff.load({
+    coreURL: URL.createObjectURL(new Blob([coreJS], { type: "text/javascript" })),
+    wasmURL: URL.createObjectURL(new Blob([coreWasm], { type: "application/wasm" }))
+  });
+  ffInstance = ff;
+  return ff;
+}
+async function exportMP4(fps, k, wm, voices) {
+  const total = Math.max(1, Math.round(totalDuration() * fps));
+  if (total > 1200) throw new Error("too-long-for-mp4");
+  setExpStatus("Loading the MP4 engine — a one-time download, cached afterwards for offline use…");
+  const ff = await loadFFmpeg();
+  const { fetchFile } = FFmpegWASM;
+  for (let i = 0; i < voices.length; i++) {
+    await ff.writeFile(`v${i}.${voiceExt(voices[i].blob)}`, await fetchFile(voices[i].blob));
+  }
+  const ok = await runFrames({
+    fps, k, wm,
+    onFrame: async (idx) => {
+      const blob = await new Promise(r => stageEl.toBlob(r, "image/jpeg", 0.85));
+      if (!blob) return false;
+      await ff.writeFile(`f${String(idx - 1).padStart(4, "0")}.jpg`, await fetchFile(blob));
+      return true;
+    }
+  });
+  if (!ok || exportCancel) throw new Error("cancelled");
+  setExpProgress(0.92, "Encoding MP4…");
+  const args = ["-framerate", String(fps), "-i", "f%04d.jpg"];
+  voices.forEach((v, i) => args.push("-i", `v${i}.${voiceExt(v.blob)}`));
+  if (voices.length) {
+    const fc = voices.map((v, i) => `[${i + 1}:a]adelay=${Math.round(v.start * 1000)}|${Math.round(v.start * 1000)}[a${i}]`).join(";")
+      + ";" + voices.map((_, i) => `[a${i}]`).join("") + `amix=inputs=${voices.length}:normalize=0[aout]`;
+    args.push("-filter_complex", fc, "-map", "0:v", "-map", "[aout]");
+  }
+  args.push("-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "23", "-preset", "ultrafast", "-movflags", "+faststart", "-shortest", "out.mp4");
+  ffBusy = true;
+  try { await ff.exec(args); } finally { ffBusy = false; }
+  if (exportCancel) throw new Error("cancelled");
+  const data = await ff.readFile("out.mp4");
+  for (let i = 0; i < total; i++) { try { await ff.deleteFile(`f${String(i).padStart(4, "0")}.jpg`); } catch { /* ignore */ } }
+  for (let i = 0; i < voices.length; i++) { try { await ff.deleteFile(`v${i}.${voiceExt(voices[i].blob)}`); } catch { /* ignore */ } }
+  try { await ff.deleteFile("out.mp4"); } catch { /* ignore */ }
+  setExpProgress(1, "Done");
+  return new Blob([data], { type: "video/mp4" });
+}
+async function exportWebM(fps, k, wm, voices) {
+  if (!window.MediaRecorder || !stageEl.captureStream) throw new Error("no-mediarecorder");
+  let rec = null, chunks = [], doneP = null, vtrack = null, actx = null, dest = null;
+  const buffers = {};
+  const ok = await runFrames({
+    fps, k, wm,
+    onStart: async () => {
+      const stream = stageEl.captureStream(0);
+      vtrack = stream.getVideoTracks()[0];
+      const tracks = [vtrack];
+      if (voices.length) {
+        try {
+          actx = new (window.AudioContext || window.webkitAudioContext)();
+          dest = actx.createMediaStreamDestination();
+          tracks.push(dest.stream.getAudioTracks()[0]);
+          for (const v of voices) {
+            try { buffers[v.index] = await actx.decodeAudioData(await v.blob.arrayBuffer()); } catch { /* skip clip */ }
+          }
+        } catch { actx = null; }
+      }
+      const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
+        .find(m => { try { return MediaRecorder.isTypeSupported(m); } catch { return false; } }) || "";
+      rec = new MediaRecorder(new MediaStream(tracks), mime ? { mimeType: mime, videoBitsPerSecond: 10000000 } : undefined);
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      doneP = new Promise(r => { rec.onstop = r; });
+      rec.start(200);
+    },
+    onScene: (i) => {
+      if (actx && buffers[i]) {
+        try {
+          const src = actx.createBufferSource();
+          src.buffer = buffers[i];
+          src.connect(dest);
+          src.start();
+        } catch { /* ignore */ }
+      }
+    },
+    onFrame: async () => {
+      if (vtrack && vtrack.requestFrame) vtrack.requestFrame();
+      await sleepE(Math.max(0, 1000 / fps - 4));
+      return true;
+    },
+    onFinish: async () => {
+      if (rec && rec.state !== "inactive") rec.stop();
+      if (doneP) await doneP;
+      if (actx) { try { await actx.close(); } catch { /* ignore */ } }
+    }
+  });
+  if (!ok || exportCancel) throw new Error("cancelled");
+  setExpProgress(1, "Done");
+  return new Blob(chunks, { type: "video/webm" });
+}
+$("#expCancelBtn").addEventListener("click", () => {
+  exportCancel = true;
+  if (ffInstance && ffBusy) {
+    try { ffInstance.terminate(); } catch { /* ignore */ }
+    ffInstance = null; ffBusy = false;
+  }
+  setExpStatus("Cancelling…");
+});
+$("#exportBtn").addEventListener("click", () => {
+  $("#exportTitleInput").value = project.name || "My Cartoon";
+  const t = totalDuration();
+  $("#exportDuration").value = `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(Math.round(t % 60)).padStart(2, "0")}`;
+  openModal("#exportModal");
+});
+$("#renderBtn").addEventListener("click", async () => {
+  if (exporting) return;
+  exporting = true; exportCancel = false;
+  const renderBtn = $("#renderBtn");
+  renderBtn.disabled = true;
+  $("#expResult").hidden = true;
+  $("#expProgress").hidden = false;
+  $("#exportNote").textContent = "";
+  setExpProgress(0.02, "Preparing your video…");
+  const fps = parseInt($("#exportFps").value, 10) || 24;
+  const q = $("#exportQuality").value;
+  const k = q.indexOf("Low") === 0 ? 2 / 3 : (q.indexOf("High") === 0 ? 1.5 : 1);
+  const wm = $("#exportWatermark").checked;
+  const wantMp4 = $("#exportFormat").value === "MP4";
+  const voices = await collectVoices();
+  let blob = null, fmt = "", fallbackNote = "";
+  try {
+    if (wantMp4) {
+      try {
+        blob = await exportMP4(fps, k, wm, voices);
+        fmt = "MP4";
+      } catch (e) {
+        if (exportCancel || (e && e.message === "cancelled")) throw e;
+        fallbackNote = e && e.message === "too-long-for-mp4"
+          ? "This project is longer than the in-browser MP4 engine handles (about 50 seconds), so it was rendered as WebM — YouTube accepts WebM directly."
+          : "The MP4 engine could not run in this browser, so your video was rendered as WebM instead — it plays in all modern browsers, and YouTube accepts it.";
+        blob = await exportWebM(fps, k, wm, voices);
+        fmt = "WebM";
+      }
+    } else {
+      blob = await exportWebM(fps, k, wm, voices);
+      fmt = "WebM";
+    }
+  } catch (e) {
+    $("#expProgress").hidden = true;
+    $("#exportNote").textContent = exportCancel || (e && e.message === "cancelled")
+      ? "Render cancelled — your project is unchanged."
+      : "Sorry — the render failed in this browser. Your project is safe; try Medium quality, or a shorter project.";
+    exporting = false;
+    renderBtn.disabled = false;
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const dims = `${Math.round(1280 * k)}×${Math.round(720 * k)}`;
+  const title = ($("#exportTitleInput").value || "My Cartoon").trim();
+  const fname = (title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "ss-animation") + (fmt === "MP4" ? ".mp4" : ".webm");
+  $("#expVideo").src = url;
+  const dl = $("#expDownload");
+  dl.href = url; dl.setAttribute("download", fname);
+  $("#expMeta").textContent = `${fmt} · ${dims} · ${fps} FPS · ${(blob.size / 1048576).toFixed(2)} MB · ${totalDuration().toFixed(0)}s${wm ? " · watermark on" : ""}`;
+  $("#expResult").hidden = false;
+  $("#expProgress").hidden = true;
+  $("#exportNote").textContent = fallbackNote;
+  setNote(`Your video is ready — ${fmt}, ${dims}. Download it from the export window.`);
+  exporting = false;
+  renderBtn.disabled = false;
 });
 $("#profileBtn").addEventListener("click", () => {
   renderDashboard("");
@@ -1743,6 +2026,22 @@ renderScenes(); renderTracks(); drawStage(); pushHistory();
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
+/* Offline polish — connection badge + installed state */
+function syncNetBadge() {
+  const b = $("#netBadge");
+  if (!b) return;
+  const on = navigator.onLine;
+  b.textContent = on ? "● Online" : "● Offline — studio still works";
+  b.classList.toggle("off", !on);
+}
+window.addEventListener("online", syncNetBadge);
+window.addEventListener("offline", syncNetBadge);
+syncNetBadge();
+window.addEventListener("appinstalled", () => {
+  const b = $("#installBtn");
+  if (b) { b.hidden = true; }
+  setNote("Ss Animation is installed — find it on your home screen or app list, it works offline too.");
+});
 let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault(); deferredPrompt = e; $("#installBtn").hidden = false;
