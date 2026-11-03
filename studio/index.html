@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ss Animation — 2D Animation Studio</title>
+<meta name="description" content="Ss Animation is a free 2D cartoon animation studio in your browser. Pick a character, build a scene, add your voice and export your own cartoon video. Easy Mode and Advanced Mode, character rigging, timeline and MP4 export.">
+<link rel="canonical" href="https://sssabbir144.github.io/studio/">
+<meta name="google-site-verification" content="ftghvKSg9s15IPOc6MQCIRsmqjI3TmHfIAfsPcLE1Yo" />
+<meta name="p:domain_verify" content="f1e42c86333ab19ba63babe4bbbe0d9c"/>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ss Animation">
+<meta property="og:title" content="Ss Animation — 2D Animation Studio">
+<meta property="og:description" content="Create your own 2D cartoon animations in the browser: characters, scenes, voice, timeline and video export.">
+<meta property="og:url" content="https://sssabbir144.github.io/studio/">
+<meta name="theme-color" content="#101010">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
+<link rel="stylesheet" href="studio.css?v=1">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
+</script>
+</head>
+<body class="studio-body">
+
+<!-- ============ LANDING ============ -->
+<header class="nav" id="siteNav">
+  <div class="nav-inner">
+    <a class="brand-badge" href="../" aria-label="Sabbir Hossin — portfolio home">sabbir</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="../#work">Known For</a>
+      <a href="../#filmography">Filmography</a>
+      <a href="../#services">Services</a>
+      <a href="#pricing">Pricing</a>
+      <a href="../coloring-pages.html">Coloring Pages</a>
+    </nav>
+    <div class="nav-icons">
+      <button class="btn btn-accent" id="installBtn" hidden>Install App</button>
+      <a class="btn btn-accent" href="#studioApp">Open the Studio</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="landing-hero">
+    <p class="hero-kicker">FREE 2D CARTOON ANIMATION STUDIO</p>
+    <h1 class="hero-title">Ss Animation</h1>
+    <p class="hero-sub">Make your own cartoon videos right in your browser. Choose a character, build a scene, record your voice, animate on the timeline and export your film — no software to install.</p>
+    <div class="hero-cta">
+      <a class="btn btn-accent btn-lg" href="#studioApp">Start Creating — It's Free</a>
+      <a class="btn btn-ghost btn-lg" href="#pricing">See Pro Plans</a>
+    </div>
+    <ul class="hero-points">
+      <li>45 ready characters</li>
+      <li>Easy + Advanced Mode</li>
+      <li>Character rigging</li>
+      <li>Voice recording</li>
+      <li>MP4 export</li>
+      <li>Works offline</li>
+    </ul>
+  </section>
+
+  <section class="feature-grid" aria-label="Studio features">
+    <article class="feature-card"><h3>Characters &amp; Rigging</h3><p>Pick from ready-made characters or build your own and rig it for smooth movement.</p></article>
+    <article class="feature-card"><h3>Scenes &amp; Media</h3><p>Backgrounds, people, vehicles, animals and objects — or upload your own images.</p></article>
+    <article class="feature-card"><h3>Rain &amp; River Effects</h3><p>A natural effects studio: flowing rivers, rain, thunder and camera shake.</p></article>
+    <article class="feature-card"><h3>Your Own Voice</h3><p>Record with your microphone or upload audio, and place it on the timeline.</p></article>
+    <article class="feature-card"><h3>Timeline Animation</h3><p>Scenes, keyframes and layers with undo/redo — animate like a professional.</p></article>
+    <article class="feature-card"><h3>Export &amp; Share</h3><p>Export your cartoon as an MP4 video and share it anywhere.</p></article>
+  </section>
+
+  <!-- ============ STUDIO APP ============ -->
+  <section class="studio-wrap" id="studioApp" aria-label="Ss Animation studio">
+    <div class="studio-frame">
+      <!-- Top bar -->
+      <div class="app-topbar">
+        <div class="app-brand"><span class="app-logo">Ss</span><span class="app-name">Ss Animation</span></div>
+        <input class="project-name" id="projectName" type="text" value="Untitled Project" aria-label="Project name">
+        <div class="mode-switch" role="group" aria-label="Editor mode">
+          <button class="mode-btn active" id="modeEasy" type="button">Easy Mode</button>
+          <button class="mode-btn" id="modeAdvanced" type="button">Advanced Mode</button>
+        </div>
+        <div class="app-actions">
+          <button class="btn btn-accent" id="getProBtn" type="button">Get Pro</button>
+          <button class="btn btn-panel" id="saveProjectBtn" type="button">Save Project</button>
+          <button class="btn btn-panel" id="exportBtn" type="button">Export Video</button>
+          <button class="btn btn-panel" id="projectsBtn" type="button">Projects</button>
+          <button class="avatar-btn" id="profileBtn" type="button" aria-label="Profile">S</button>
+        </div>
+      </div>
+
+      <!-- Main area: rail + panel + stage -->
+      <div class="app-main">
+        <nav class="tool-rail" id="toolRail" aria-label="Studio tools"></nav>
+        <aside class="tool-panel" id="toolPanel" aria-label="Tool panel"></aside>
+        <div class="stage-area">
+          <div class="stage-toolbar">
+            <span class="stage-label">Canvas · 16:9</span>
+            <label class="zoom-ctl">Canvas zoom
+              <input type="range" id="canvasZoom" min="50" max="150" value="100">
+            </label>
+          </div>
+          <div class="stage-viewport" id="stageViewport">
+            <div class="stage-canvas" id="stageCanvas">
+              <svg class="stage-art" viewBox="0 0 1280 720" role="img" aria-label="Empty scene preview">
+                <rect width="1280" height="720" fill="#87b5d9"/>
+                <circle cx="1090" cy="120" r="55" fill="#ffd94d"/>
+                <path d="M0 520 L260 380 L520 520 L820 360 L1080 500 L1280 420 L1280 720 L0 720 Z" fill="#5e9e52"/>
+                <path d="M0 600 L340 480 L700 610 L1020 500 L1280 590 L1280 720 L0 720 Z" fill="#4a8a41"/>
+                <rect y="640" width="1280" height="80" fill="#3f7d38"/>
+              </svg>
+              <div class="stage-empty">
+                <p class="stage-empty-title">Your scene starts here</p>
+                <p class="stage-empty-sub">Pick a character or a background from the tools on the left.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="timeline" aria-label="Timeline">
+        <div class="timeline-bar">
+          <div class="transport">
+            <button class="tl-btn" id="jumpStartBtn" type="button" title="Jump to start">⏮</button>
+            <button class="tl-btn" id="back5Btn" type="button" title="Back 5 seconds">−5s</button>
+            <button class="tl-btn tl-play" id="playBtn" type="button" title="Play">▶</button>
+            <button class="tl-btn" id="fwd5Btn" type="button" title="Forward 5 seconds">+5s</button>
+            <span class="time-display" id="timeDisplay">00:00 / 02:00</span>
+          </div>
+          <div class="scene-strip" id="sceneStrip">
+            <button class="scene-chip active" type="button">Scene 1</button>
+            <button class="tl-btn" id="addSceneBtn" type="button">+ Add Scene</button>
+            <button class="tl-btn" id="dupSceneBtn" type="button">Duplicate</button>
+            <button class="tl-btn" id="splitSceneBtn" type="button">Split</button>
+            <button class="tl-btn" id="cameraBtn" type="button">Camera</button>
+            <button class="tl-btn" id="voiceBtn" type="button">Voice</button>
+          </div>
+          <div class="timeline-tools">
+            <button class="tl-btn" id="undoBtn" type="button" title="Undo">↩ Undo</button>
+            <button class="tl-btn" id="redoBtn" type="button" title="Redo">↪ Redo</button>
+            <button class="tl-btn" id="handBtn" type="button" title="Hand tool">✋</button>
+            <label class="zoom-ctl">Timeline zoom
+              <input type="range" id="timelineZoom" min="10" max="100" value="40">
+            </label>
+          </div>
+        </div>
+        <div class="timeline-tracks" id="timelineTracks">
+          <div class="playhead" id="playhead"></div>
+          <div class="track-row"><span class="track-name">Layer 1</span><div class="track-lane"></div></div>
+          <div class="track-row"><span class="track-name">Voice</span><div class="track-lane"></div></div>
+          <button class="tl-btn layers-toggle" id="layersBtn" type="button">Layers ▾</button>
+        </div>
+      </div>
+    </div>
+    <p class="studio-note" id="saveNote" role="status"></p>
+  </section>
+
+  <!-- ============ PRICING ============ -->
+  <section class="pricing" id="pricing" aria-label="Pricing">
+    <h2 class="section-title">Plans</h2>
+    <p class="section-sub">Start free. Go Pro when you are ready — pay easily with bKash, Nagad or Rocket.</p>
+    <div class="plan-grid">
+      <article class="plan-card">
+        <h3>Free</h3>
+        <p class="plan-price">৳0</p>
+        <ul>
+          <li>2 projects</li>
+          <li>Basic characters &amp; media</li>
+          <li>Export with watermark</li>
+          <li>720p export</li>
+        </ul>
+        <button class="btn btn-panel plan-btn" type="button" data-plan="Free">Current Plan</button>
+      </article>
+      <article class="plan-card plan-featured">
+        <h3>Pro — 30 Days</h3>
+        <p class="plan-price">৳200</p>
+        <ul>
+          <li>Unlimited projects</li>
+          <li>No watermark</li>
+          <li>All premium characters</li>
+          <li>Character create &amp; edit</li>
+          <li>Studio, Sprite Sheet &amp; Anim IK</li>
+          <li>Higher-resolution export</li>
+          <li>Cloud backup &amp; auto-save</li>
+        </ul>
+        <button class="btn btn-accent plan-btn" type="button" data-plan="Pro — 30 Days · ৳200">Get Pro</button>
+      </article>
+      <article class="plan-card">
+        <h3>Pro — 6 Months</h3>
+        <p class="plan-price">৳1000</p>
+        <ul>
+          <li>Everything in Pro</li>
+          <li>2 devices</li>
+          <li>Faster rendering</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="btn btn-accent plan-btn" type="button" data-plan="Pro — 6 Months · ৳1000">Get Pro</button>
+      </article>
+      <article class="plan-card">
+        <h3>Pro — 1 Year</h3>
+        <p class="plan-price">৳2000</p>
+        <ul>
+          <li>Everything in Pro</li>
+          <li>2 devices</li>
+          <li>Faster rendering</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="btn btn-accent plan-btn" type="button" data-plan="Pro — 1 Year · ৳2000">Get Pro</button>
+      </article>
+    </div>
+  </section>
+</main>
+
+<!-- ============ EXPORT DIALOG ============ -->
+<div class="modal-backdrop" id="exportModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="modal-head"><h3 id="exportTitle">Export Video</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
+    <label class="field">Title <input type="text" id="exportTitleInput" value="My Cartoon"></label>
+    <div class="field-row">
+      <label class="field">Format
+        <select id="exportFormat"><option selected>MP4</option><option>WebM</option></select></label>
+      <label class="field">Quality
+        <select id="exportQuality"><option>Low (480p)</option><option selected>Medium (720p)</option><option disabled>High (1080p) — Pro</option><option disabled>4K — Pro</option></select></label>
+    </div>
+    <div class="field-row">
+      <label class="field">FPS
+        <select id="exportFps"><option selected>24 FPS</option><option disabled>30 FPS — Pro</option><option disabled>60 FPS — Pro</option></select></label>
+      <label class="field">Duration <input type="text" value="02:00" readonly></label>
+    </div>
+    <label class="field switch-field">Watermark
+      <span class="switch-note">Free plan exports include the Ss Animation watermark. Pro removes it.</span>
+      <input type="checkbox" id="exportWatermark" checked disabled>
+    </label>
+    <p class="modal-note" id="exportNote"></p>
+    <div class="modal-actions">
+      <button class="btn btn-panel" data-close type="button">Cancel</button>
+      <button class="btn btn-accent" id="renderBtn" type="button">Render Video</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PRO / PAYMENT MODAL ============ -->
+<div class="modal-backdrop" id="proModal" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="proTitle">
+    <div class="modal-head"><h3 id="proTitle">Get Pro</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
+    <p class="modal-sub" id="proPlanLine">Choose a plan, send money, and send us the details — Pro is activated after verification, usually within a few minutes to 24 hours.</p>
+    <div class="pay-plans" id="payPlans">
+      <button class="pay-plan active" type="button" data-plan="Pro — 30 Days · ৳200">30 Days<br><strong>৳200</strong></button>
+      <button class="pay-plan" type="button" data-plan="Pro — 6 Months · ৳1000">6 Months<br><strong>৳1000</strong></button>
+      <button class="pay-plan" type="button" data-plan="Pro — 1 Year · ৳2000">1 Year<br><strong>৳2000</strong></button>
+    </div>
+    <div class="pay-methods" role="group" aria-label="Payment method">
+      <button class="pay-method active" type="button" data-method="bKash">bKash</button>
+      <button class="pay-method" type="button" data-method="Nagad">Nagad</button>
+      <button class="pay-method" type="button" data-method="Rocket">Rocket</button>
+    </div>
+    <ol class="pay-steps">
+      <li>Open your <strong id="payMethodName">bKash</strong> app and choose <strong>Send Money</strong>.</li>
+      <li>Send the plan amount to this number: <strong class="pay-number" id="payNumber">— number coming soon —</strong></li>
+      <li>Fill in your sender number and the Transaction ID below, then submit.</li>
+      <li>We verify and activate Pro on your account — usually within a few minutes to 24 hours.</li>
+    </ol>
+    <label class="field">Your sender number <input type="tel" id="paySender" placeholder="01XXXXXXXXX" autocomplete="tel"></label>
+    <label class="field">Transaction ID <input type="text" id="payTrx" placeholder="e.g. 9HX7ABCDEF"></label>
+    <p class="modal-note" id="payNote"></p>
+    <div class="modal-actions">
+      <button class="btn btn-panel" data-close type="button">Cancel</button>
+      <button class="btn btn-accent" id="paySubmitBtn" type="button">Submit for Verification</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PROFILE / PROJECTS POPOVERS ============ -->
+<div class="modal-backdrop" id="profileModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+    <div class="modal-head"><h3 id="profileTitle">Profile</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
+    <p class="modal-sub">Plan: <strong>Free Plan</strong> · 2 projects</p>
+    <button class="btn btn-panel btn-block" id="googleSignInBtn" type="button">Sign in with Google</button>
+    <p class="modal-note">Accounts and cloud backup switch on with the Pro update — projects you save now stay safely in this browser.</p>
+    <div class="modal-actions"><button class="btn btn-accent" data-close type="button">Done</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="projectsModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="projectsTitle">
+    <div class="modal-head"><h3 id="projectsTitle">My Projects</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
+    <ul class="project-list" id="projectList"><li class="project-empty">No saved projects yet. Press “Save Project” and your work will appear here.</li></ul>
+    <div class="modal-actions"><button class="btn btn-panel" data-close type="button">Close</button></div>
+  </div>
+</div>
+
+<!-- ============ CINEMA DIALOG ============ -->
+<div class="modal-backdrop" id="cinemaModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cinemaTitle">
+    <div class="modal-head"><h3 id="cinemaTitle">Cinema</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
+    <p class="modal-sub">Watch Ss Animation cartoons on our YouTube channel — it opens in a new tab.</p>
+    <div class="modal-actions">
+      <button class="btn btn-panel" data-close type="button">Stay Here</button>
+      <a class="btn btn-accent" href="https://www.youtube.com/@purecartoonofficial" target="_blank" rel="noopener">Open Cinema</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ERASER / PHOTO EDITOR OVERLAY ============ -->
+<div class="editor-overlay" id="eraserOverlay" hidden>
+  <div class="editor-frame">
+    <div class="editor-head">
+      <strong>Photo Editor — Eraser</strong>
+      <div class="editor-actions">
+        <button class="btn btn-panel" type="button">Open</button>
+        <button class="btn btn-panel" type="button">Export</button>
+        <button class="btn btn-accent" id="sendToStudioBtn" type="button">Send to Studio</button>
+        <button class="icon-x" id="eraserCloseBtn" type="button" aria-label="Close editor">✕</button>
+      </div>
+    </div>
+    <div class="editor-tools" role="group" aria-label="Photo editor tools">
+      <button class="tl-btn" type="button">Selection</button>
+      <button class="tl-btn" type="button">Lasso</button>
+      <button class="tl-btn" type="button">Eraser</button>
+      <button class="tl-btn" type="button">Brush</button>
+      <label class="zoom-ctl">Colour <input type="color" value="#F5C518"></label>
+      <label class="zoom-ctl">Zoom <input type="range" min="50" max="200" value="100"></label>
+    </div>
+    <div class="editor-canvas">
+      <p>Open an image to start erasing its background.<br><span class="muted">Send any image here from the Asset Library with “Send Image to Eraser”.</span></p>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <p class="footer-links"><a href="../animation-process.html">How Your Video Is Made</a> &middot; <a href="../hire-a-freelance-animator.html">Hiring Guide for Clients</a> &middot; <a href="../coloring-pages.html">Coloring Pages</a> &middot; <a href="../bedtime-stories.html">Bedtime Stories</a> &middot; <a href="../">Portfolio Home</a></p>
+    <p class="muted">Ss Animation — a 2D cartoon animation studio by Sabbir Hossin.</p>
+  </div>
+</footer>
+
+<script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script src="studio.js?v=1"></script>
+</body>
+</html>
