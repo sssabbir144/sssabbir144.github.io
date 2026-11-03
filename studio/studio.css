@@ -282,6 +282,23 @@ body.gate-open { overflow: hidden; }
 .net-badge { font-size: 12px; font-weight: 700; color: #7dd87d; white-space: nowrap; }
 .net-badge.off { color: var(--accent); }
 
+/* ---------- Owner's order (2026-11-03): the three top-bar pills, one size, one line, on mobile ---------- */
+@media (max-width: 700px) {
+  #siteNav .nav-inner { gap: 8px; padding: 0 10px; }
+  #siteNav .brand-badge,
+  #siteNav .nav-icons .btn {
+    height: 38px; padding: 0 12px; font-size: 13px; line-height: 1; letter-spacing: 0;
+    border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+    white-space: nowrap; flex: none;
+  }
+  #siteNav .nav-icons { gap: 8px; }
+}
+@media (max-width: 380px) {
+  #siteNav .nav-inner { gap: 6px; padding: 0 8px; }
+  #siteNav .brand-badge,
+  #siteNav .nav-icons .btn { padding: 0 9px; font-size: 12px; }
+  #siteNav .nav-icons { gap: 6px; }
+}
 /* ---------- QA fixes: anchored sections clear the sticky nav ---------- */
 #dashboard, #studioApp { scroll-margin-top: 70px; }
 #dashboard { padding-top: calc(var(--nav-h) + 14px); }
