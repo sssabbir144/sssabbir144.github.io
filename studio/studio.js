@@ -96,6 +96,7 @@ const ANIMAL_LIST = [["🐶", "Dog", 0], ["🐱", "Cat", 0], ["🐦", "Bird", 0]
 function freshScene(name) { return { id: nid("sc"), name, duration: 5, bg: "village", objects: [], voiceAssetId: null }; }
 function freshProject() { return { name: "Untitled Project", scenes: [freshScene("Scene 1")] }; }
 let project = freshProject();
+let savedName = null; // name the current project was last saved under (rename migration)
 let curScene = 0, selId = null, playT = 0;
 const scene = () => project.scenes[curScene];
 const selObj = () => scene().objects.find(o => o.id === selId) || null;
@@ -688,6 +689,8 @@ async function autoSave() {
     if (!all.some(p => p.name === project.name) && !isPro() && all.length >= 2) return; // Free limit: no silent 3rd project
     const prevRec = all.find(p => p.name === project.name);
     await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now(), thumb: captureThumb() || (prevRec && prevRec.thumb) || null });
+    if (savedName && savedName !== project.name) { try { await idbDel("projects", savedName); } catch { /* old copy lingers */ } cloudDeleteProject(savedName); }
+    savedName = project.name;
     localStorage.setItem("ssanim_last", project.name);
     cloudBackupProject(false);
     renderDashboard($("#projSearch") ? $("#projSearch").value : "");
@@ -915,16 +918,26 @@ async function saveProject() {
   }
   const prevRec2 = all.find(p => p.name === project.name);
   await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now(), thumb: captureThumb() || (prevRec2 && prevRec2.thumb) || null });
+  if (savedName && savedName !== project.name) { try { await idbDel("projects", savedName); } catch { /* old copy lingers */ } cloudDeleteProject(savedName); }
+  savedName = project.name;
   localStorage.setItem("ssanim_last", project.name);
   const cloud = await cloudBackupProject(true);
   setNote(`Project “${project.name}” saved in this browser.${cloud ? " Cloud backup updated." : ""}`);
   renderDashboard("");
 }
+$("#projectName").addEventListener("change", () => {
+  const v = $("#projectName").value.trim();
+  if (!v) { $("#projectName").value = project.name; return; }
+  if (v === project.name) return;
+  project.name = v;
+  saveProject().catch(() => setNote("Rename could not be saved — storage unavailable."));
+});
 $("#saveProjectBtn").addEventListener("click", () => saveProject().catch(e => setNote(`Save failed — ${(e && e.name) || "storage unavailable"}. Your work is still open in this tab; try saving again.`)));
 async function loadProject(name) {
   const rec = await idbGet("projects", name);
   if (!rec) return false;
   project = rec; delete project.savedAt; delete project.thumb;
+  savedName = name;
   curScene = 0; selId = null; playT = 0;
   Object.keys(imgCache).forEach(k => delete imgCache[k]);
   $("#projectName").value = project.name;
@@ -1810,11 +1823,14 @@ function projCardHTML(p, opts) {
       <button class="btn btn-accent pc-open" data-open="${opts.attr}" type="button">Open Project</button>
     </div>`;
 }
+let dashRenderSeq = 0;
 async function renderDashboard(filter) {
   const listEl = $("#projList"), emptyEl = $("#projEmpty");
   if (!listEl) return;
+  const seq = ++dashRenderSeq;
   let all = [];
-  try { all = (await idbAll("projects")).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)); } catch { all = []; }
+  try { all = (await idbAll("projects")).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)); } catch { return; } // storage hiccup: keep the current dashboard instead of blanking it
+  if (seq !== dashRenderSeq) return; // a newer render has taken over
   $("#projCount").textContent = `(${all.length})`;
   const f = (filter || "").trim().toLowerCase();
   const shown = f ? all.filter(p => p.name.toLowerCase().includes(f)) : all;
@@ -1835,11 +1851,21 @@ async function renderDashboard(filter) {
       setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
     }
   }));
-  appendCloudProjects(listEl, new Set(all.map(p => p.name)), filter);
+  $$(".pc-thumb, .pc-name", listEl).forEach(el => el.addEventListener("click", () => {
+    const card = el.closest(".proj-card");
+    const b = card && card.querySelector("[data-dash-open]");
+    if (b) b.click();
+  }));
+  appendCloudProjects(listEl, new Set(all.map(p => p.name)), filter, seq);
 }
-function newProject() {
+async function newProject() {
   stopPlayback();
   project = freshProject();
+  savedName = null;
+  try {
+    const taken = new Set((await idbAll("projects")).map(p => p.name));
+    if (taken.has(project.name)) { let i = 2; while (taken.has(`Untitled Project ${i}`)) i++; project.name = `Untitled Project ${i}`; }
+  } catch { /* keep the default name */ }
   curScene = 0; selId = null; playT = 0;
   $("#projectName").value = project.name;
   history = []; hIdx = -1; pushHistory();
@@ -2104,6 +2130,10 @@ async function signOutUser() {
     setNote("Signed out. See you soon!");
   }
 }
+async function cloudDeleteProject(name) {
+  if (!fb || !fb.user || !cloudOk || !name) return;
+  try { const { doc, deleteDoc } = fb.fsM; if (deleteDoc) await deleteDoc(doc(fb.db, "users", fb.user.uid, "projects", encodeURIComponent(name))); } catch { /* cloud copy lingers harmlessly */ }
+}
 /* Cloud backup of the current project (Firestore users/{uid}/projects) */
 async function cloudBackupProject(force) {
   if (!fb || !fb.user || !cloudOk) return false;
@@ -2121,11 +2151,12 @@ async function cloudBackupProject(force) {
     return true;
   } catch { return false; }
 }
-async function appendCloudProjects(listEl, localNames, filter) {
+async function appendCloudProjects(listEl, localNames, filter, seq) {
   if (!fb || !fb.user || !cloudOk || !listEl) return;
   try {
     const { collection, getDocs } = fb.fsM;
     const snap = await getDocs(collection(fb.db, "users", fb.user.uid, "projects"));
+    if (seq !== undefined && seq !== dashRenderSeq) return; // superseded by a newer render
     const f = (filter || "").trim().toLowerCase();
     const extras = [];
     snap.forEach(d => {
@@ -2144,7 +2175,9 @@ async function appendCloudProjects(listEl, localNames, filter) {
       if (isNewest) { dashNewestTs = p.savedAt || 0; listEl.querySelectorAll(".pc-active").forEach(e => e.remove()); }
       row.innerHTML = projCardHTML({ thumb: p.thumb || null, savedAt: p.savedAt }, { active: isNewest, attr: "", tracks, cloud: true });
       row.querySelector("[data-open]").classList.add("cloud-open");
-      row.querySelector(".pi-name").textContent = p.name;
+      row.querySelector(".pc-name").textContent = p.name;
+      const cThumb = row.querySelector(".pc-thumb"), cName = row.querySelector(".pc-name");
+      [cThumb, cName].forEach(el => { if (el) el.addEventListener("click", () => { const b = row.querySelector(".cloud-open"); if (b) b.click(); }); });
       row.querySelector(".cloud-open").addEventListener("click", async () => {
         try {
           const rec = JSON.parse(p.data);
