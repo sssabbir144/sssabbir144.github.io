@@ -45,6 +45,15 @@ async function idbGet(store, key) {
     q.onerror = () => rej(q.error);
   });
 }
+async function idbDel(store, key) {
+  const d = await db();
+  return new Promise((res, rej) => {
+    const t = d.transaction(store, "readwrite");
+    t.objectStore(store).delete(key);
+    t.oncomplete = () => res(true);
+    t.onerror = () => rej(t.error);
+  });
+}
 async function idbAll(store) {
   const d = await db();
   return new Promise((res, rej) => {
@@ -1965,6 +1974,7 @@ async function renderDashboard(filter) {
        <span class="pi-meta"><span class="pi-name">${p.name}</span>
        <span class="pi-sub">${(p.scenes || []).length} scene(s) · saved ${new Date(p.savedAt || Date.now()).toLocaleString()}</span></span>
        <button class="btn btn-panel" data-dash-open="${p.name}" type="button" style="padding:7px 14px;font-size:13px">Open</button>
+       <button class="btn btn-panel" data-dash-del="${p.name}" type="button" style="padding:7px 12px;font-size:13px" title="Delete this project from this browser">✕</button>
      </div>`).join("")
     + (f && !shown.length && all.length ? `<p class="panel-note">No projects match “${filter}”.</p>` : "");
   $$("[data-dash-open]", listEl).forEach(b => b.addEventListener("click", async () => {
@@ -1972,6 +1982,16 @@ async function renderDashboard(filter) {
       $("#studioApp").scrollIntoView({ behavior: "smooth" });
       setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
     }
+  }));
+  $$("[data-dash-del]", listEl).forEach(b => b.addEventListener("click", async () => {
+    const name = b.dataset.dashDel;
+    if (!confirm(`Delete “${name}” from this browser? This cannot be undone.`)) return;
+    try {
+      await idbDel("projects", name);
+      if (localStorage.getItem("ssanim_last") === name) localStorage.removeItem("ssanim_last");
+      setNote(`Project “${name}” deleted from this browser.`);
+      renderDashboard($("#projSearch") ? $("#projSearch").value : "");
+    } catch { setNote("Delete failed — browser storage is unavailable."); }
   }));
   appendCloudProjects(listEl, new Set(all.map(p => p.name)), filter);
 }
