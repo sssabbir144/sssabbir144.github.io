@@ -1962,7 +1962,7 @@ $("#sendToStudioBtn").addEventListener("click", () => {
 });
 
 /* ---------------- Dashboard (first interface) ---------------- */
-let pendingDelName = null;
+let pendingDelName = null, pendingDelScope = "local";
 async function renderDashboard(filter) {
   const listEl = $("#projList"), emptyEl = $("#projEmpty");
   if (!listEl) return;
@@ -1988,7 +1988,8 @@ async function renderDashboard(filter) {
   }));
   $$("[data-dash-del]", listEl).forEach(b => b.addEventListener("click", () => {
     pendingDelName = b.dataset.dashDel;
-    $("#delText").textContent = `Delete “${pendingDelName}” from this browser? This cannot be undone.`;
+    pendingDelScope = "local";
+    $("#delText").textContent = `Delete “${pendingDelName}” from this browser and your cloud backup? This cannot be undone.`;
     openModal("#delModal");
   }));
   appendCloudProjects(listEl, new Set(all.map(p => p.name)), filter);
@@ -2006,16 +2007,25 @@ function newProject() {
 $("#payNowBtn").addEventListener("click", () => openPro());
 $("#powerBtn").addEventListener("click", () => { signOutUser(); });
 $("#delConfirmBtn").addEventListener("click", async () => {
-  const name = pendingDelName;
+  const name = pendingDelName, scope = pendingDelScope;
   pendingDelName = null;
   $("#delModal").hidden = true;
   if (!name) return;
-  try {
-    await idbDel("projects", name);
-    if (localStorage.getItem("ssanim_last") === name) localStorage.removeItem("ssanim_last");
-    setNote(`Project “${name}” deleted from this browser.`);
-    renderDashboard($("#projSearch") ? $("#projSearch").value : "");
-  } catch { setNote("Delete failed — browser storage is unavailable."); }
+  let localOk = true, cloudOkDel = true;
+  if (scope !== "cloud") {
+    try {
+      await idbDel("projects", name);
+      if (localStorage.getItem("ssanim_last") === name) localStorage.removeItem("ssanim_last");
+    } catch { localOk = false; }
+  }
+  if (fb && fb.user && cloudOk) {
+    try { await fb.fsM.deleteDoc(fb.fsM.doc(fb.db, "users", fb.user.uid, "projects", encodeURIComponent(name))); }
+    catch { cloudOkDel = false; }
+  }
+  if (!localOk) setNote("Delete failed — browser storage is unavailable.");
+  else if (!cloudOkDel) setNote(`Project “${name}” deleted from this browser — its cloud copy could not be removed.`);
+  else setNote(`Project “${name}” deleted.`);
+  renderDashboard($("#projSearch") ? $("#projSearch").value : "");
 });
 /* Account menu on the dashboard avatar (owner's order): tap avatar → name + email + Sign out */
 (() => {
@@ -2238,9 +2248,16 @@ async function appendCloudProjects(listEl, localNames, filter) {
       row.innerHTML = `<span class="pi-ico">☁️</span>
         <span class="pi-meta"><span class="pi-name"></span>
         <span class="pi-sub">Cloud backup · saved ${new Date(p.savedAt || Date.now()).toLocaleString()}</span></span>
-        <button class="btn btn-panel" type="button" style="padding:7px 14px;font-size:13px">Open</button>`;
+        <button class="btn btn-panel cloud-open" type="button" style="padding:7px 14px;font-size:13px">Open</button>
+        <button class="btn btn-panel cloud-del" type="button" style="padding:7px 12px;font-size:13px" title="Delete this cloud backup">✕</button>`;
       row.querySelector(".pi-name").textContent = p.name;
-      row.querySelector("button").addEventListener("click", async () => {
+      row.querySelector(".cloud-del").addEventListener("click", () => {
+        pendingDelName = p.name;
+        pendingDelScope = "cloud";
+        $("#delText").textContent = `Delete the cloud backup of “${p.name}”? This cannot be undone.`;
+        openModal("#delModal");
+      });
+      row.querySelector(".cloud-open").addEventListener("click", async () => {
         try {
           const rec = JSON.parse(p.data);
           await idbPut("projects", { ...rec, savedAt: Date.now() });
