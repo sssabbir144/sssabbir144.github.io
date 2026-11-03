@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=16">
+<link rel="stylesheet" href="studio.css?v=17">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -68,6 +68,7 @@
       </button>
     </div>
 
+    <div class="dash-layout">
     <div class="dash-card">
       <div class="dash-cover">
         <img class="cover-plate" id="coverStill" src="dashboard-banner.webp?v=2" alt="" aria-hidden="true">
@@ -96,8 +97,13 @@
         <p class="dash-handle"><span id="dashHandle">@ssanimation</span> <span class="dash-badge" id="planBadge">FREE USER</span></p>
         <p class="dash-bio">Ss Animation is a 2D cartoon animation studio. Create your own cartoon videos right in your browser — ready characters, lively scenes, your own voice, and a timeline that brings every story to life.</p>
       </div>
+      <div class="dash-card-btns">
+        <button class="btn btn-accent" id="manageSubBtn" type="button">Manage Subscription</button>
+        <button class="btn btn-panel" id="dashLogoutBtn" type="button">Log Out</button>
+      </div>
     </div>
 
+    <div class="dash-col">
     <div class="dash-card dash-projects-card">
       <div class="dash-proj-head">
         <h3 class="dash-proj-title"><span class="dash-film-ico">🎞</span> Projects <span class="dash-count" id="projCount">(0)</span></h3>
@@ -114,6 +120,8 @@
       <h4>No projects created yet</h4>
       <p>Start your creative journey by creating your first cartoon project! Everything in your timeline will auto-save here.</p>
       <button class="btn btn-accent btn-lg" id="createProjBtn" type="button">+ Create New Project</button>
+    </div>
+    </div>
     </div>
   </section>
 
@@ -484,6 +492,6 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=17"></script>
+<script src="studio.js?v=18"></script>
 </body>
 </html>

@@ -655,7 +655,8 @@ async function autoSave() {
     project.name = $("#projectName").value.trim() || "Untitled Project";
     const all = await idbAll("projects");
     if (!all.some(p => p.name === project.name) && !isPro() && all.length >= 2) return; // Free limit: no silent 3rd project
-    await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now() });
+    const prevRec = all.find(p => p.name === project.name);
+    await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now(), thumb: captureThumb() || (prevRec && prevRec.thumb) || null });
     localStorage.setItem("ssanim_last", project.name);
     cloudBackupProject(false);
     renderDashboard($("#projSearch") ? $("#projSearch").value : "");
@@ -884,7 +885,8 @@ async function saveProject() {
     setNote("Free plan holds 2 projects — delete one from Projects, or save over an existing name.");
     return;
   }
-  await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now() });
+  const prevRec2 = all.find(p => p.name === project.name);
+  await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now(), thumb: captureThumb() || (prevRec2 && prevRec2.thumb) || null });
   localStorage.setItem("ssanim_last", project.name);
   const cloud = await cloudBackupProject(true);
   setNote(`Project “${project.name}” saved in this browser.${cloud ? " Cloud backup updated." : ""}`);
@@ -894,7 +896,7 @@ $("#saveProjectBtn").addEventListener("click", () => saveProject().catch(e => se
 async function loadProject(name) {
   const rec = await idbGet("projects", name);
   if (!rec) return false;
-  project = rec; delete project.savedAt;
+  project = rec; delete project.savedAt; delete project.thumb;
   curScene = 0; selId = null; playT = 0;
   Object.keys(imgCache).forEach(k => delete imgCache[k]);
   $("#projectName").value = project.name;
@@ -1962,6 +1964,43 @@ $("#sendToStudioBtn").addEventListener("click", () => {
 });
 
 /* ---------------- Dashboard (first interface) ---------------- */
+const OWNER_EMAIL = "sssabbir7888@gmail.com";
+let dashNewestTs = 0;
+function agoTxt(ts) {
+  const s = Math.max(0, (Date.now() - (ts || Date.now())) / 1000);
+  if (s < 90) return "just now";
+  if (s < 5400) return `${Math.round(s / 60)} min ago`;
+  if (s < 129600) return `${Math.round(s / 3600)} hours ago`;
+  if (s < 2592000) return `${Math.round(s / 86400)} days ago`;
+  return new Date(ts || Date.now()).toLocaleDateString();
+}
+function trackCount(p) {
+  try { return (p.scenes || []).reduce((n, sc) => n + ((sc.objects || []).length), 0); } catch { return 0; }
+}
+function captureThumb() {
+  try {
+    const c = document.createElement("canvas"); c.width = 480; c.height = 270;
+    const x = c.getContext("2d");
+    x.fillStyle = "#101010"; x.fillRect(0, 0, 480, 270);
+    x.drawImage(stageEl, 0, 0, 480, 270);
+    return c.toDataURL("image/jpeg", 0.72);
+  } catch { return null; }
+}
+function projCardHTML(p, opts) {
+  const active = opts.active ? `<span class="pc-active">ACTIVE</span>` : "";
+  const thumb = p.thumb
+    ? `<img src="${p.thumb}" alt="">`
+    : `<span class="pc-ph">🎞</span>`;
+  const sub = opts.cloud ? `<p class="pc-meta">☁️ Cloud backup · Updated ${agoTxt(p.savedAt)}</p>` : `<p class="pc-meta">Updated ${agoTxt(p.savedAt)}</p>`;
+  return `<div class="pc-thumb">${thumb}<button class="pc-del" data-del="${opts.attr}" type="button" title="Delete this project">✕</button></div>
+    <div class="pc-body">
+      <div class="pc-tags"><span class="pc-tag">EASY MODE</span>${active}</div>
+      <h4 class="pc-name"></h4>
+      ${sub}
+      <p class="pc-meta">${opts.tracks} Tracks</p>
+      <button class="btn btn-accent pc-open" data-open="${opts.attr}" type="button">Open Project</button>
+    </div>`;
+}
 let pendingDelName = null, pendingDelScope = "local";
 async function renderDashboard(filter) {
   const listEl = $("#projList"), emptyEl = $("#projEmpty");
@@ -1972,13 +2011,16 @@ async function renderDashboard(filter) {
   const f = (filter || "").trim().toLowerCase();
   const shown = f ? all.filter(p => p.name.toLowerCase().includes(f)) : all;
   emptyEl.style.display = all.length ? "none" : "";
-  listEl.innerHTML = shown.map(p =>
-    `<div class="dash-proj-item"><span class="pi-ico">🎞</span>
-       <span class="pi-meta"><span class="pi-name">${p.name}</span>
-       <span class="pi-sub">${(p.scenes || []).length} scene(s) · saved ${new Date(p.savedAt || Date.now()).toLocaleString()}</span></span>
-       <button class="btn btn-panel" data-dash-open="${p.name}" type="button" style="padding:7px 14px;font-size:13px">Open</button>
-       <button class="btn btn-panel" data-dash-del="${p.name}" type="button" style="padding:7px 12px;font-size:13px" title="Delete this project from this browser">✕</button>
-     </div>`).join("")
+  dashNewestTs = all.length ? (all[0].savedAt || 0) : 0;
+  listEl.innerHTML = shown.map(p => {
+    const card = document.createElement("div");
+    card.className = "proj-card";
+    card.innerHTML = projCardHTML(p, { active: (p.savedAt || 0) === dashNewestTs && dashNewestTs > 0, attr: "", tracks: trackCount(p), cloud: false });
+    card.querySelector(".pc-name").textContent = p.name;
+    card.querySelector("[data-open]").dataset.dashOpen = p.name;
+    card.querySelector("[data-del]").dataset.dashDel = p.name;
+    return card.outerHTML;
+  }).join("")
     + (f && !shown.length && all.length ? `<p class="panel-note">No projects match “${filter}”.</p>` : "");
   $$("[data-dash-open]", listEl).forEach(b => b.addEventListener("click", async () => {
     if (await loadProject(b.dataset.dashOpen)) {
@@ -2005,6 +2047,8 @@ function newProject() {
   setNote("New project started — it auto-saves here as you work.");
 }
 $("#payNowBtn").addEventListener("click", () => openPro());
+const msb = $("#manageSubBtn"); if (msb) msb.addEventListener("click", () => openPro());
+const dlb = $("#dashLogoutBtn"); if (dlb) dlb.addEventListener("click", () => { signOutUser(); });
 $("#powerBtn").addEventListener("click", () => { signOutUser(); });
 $("#delConfirmBtn").addEventListener("click", async () => {
   const name = pendingDelName, scope = pendingDelScope;
@@ -2130,13 +2174,19 @@ function showGate() {
 function applyPlan(plan) {
   userPlan = plan === "pro" ? "pro" : "free";
   const b = $("#planBadge");
+  if (fb && fb.user && fb.user.email === OWNER_EMAIL) {
+    b.textContent = "ADMIN";
+    b.classList.add("admin"); b.classList.remove("pro");
+    return;
+  }
+  b.classList.remove("admin");
   b.textContent = isPro() ? "PRO MEMBER" : "FREE USER";
   b.classList.toggle("pro", isPro());
 }
 function personalize(user) {
-  $("#dashAvatar").src = user.photoURL || "../assets/profile.jpg";
+  $("#dashAvatar").src = user.photoURL || "logo-badge.png?v=2";
   $("#dashName").textContent = user.displayName || "Ss Animation";
-  $("#dashHandle").textContent = user.email || "";
+  $("#dashHandle").textContent = "@" + ((user.email || "ssanimation").split("@")[0].toLowerCase().replace(/[^a-z0-9_.]/g, "") || "ssanimation");
   const mn = $("#acctMenuName"), me = $("#acctMenuEmail");
   if (mn) mn.textContent = user.displayName || "Ss Animation";
   if (me) me.textContent = user.email || "";
@@ -2221,9 +2271,10 @@ async function cloudBackupProject(force) {
     const data = JSON.stringify(project);
     if (data.length > 900000) return false;
     const { doc, setDoc } = fb.fsM;
-    await setDoc(doc(fb.db, "users", fb.user.uid, "projects", encodeURIComponent(project.name || "Untitled Project")), {
-      name: project.name || "Untitled Project", data, savedAt: now
-    });
+    const docData = { name: project.name || "Untitled Project", data, savedAt: now };
+    const th = captureThumb();
+    if (th) docData.thumb = th;
+    await setDoc(doc(fb.db, "users", fb.user.uid, "projects", encodeURIComponent(project.name || "Untitled Project")), docData);
     lastCloudSave = now;
     return true;
   } catch { return false; }
@@ -2244,12 +2295,14 @@ async function appendCloudProjects(listEl, localNames, filter) {
     $("#projEmpty").style.display = "none";
     for (const p of extras) {
       const row = document.createElement("div");
-      row.className = "dash-proj-item";
-      row.innerHTML = `<span class="pi-ico">☁️</span>
-        <span class="pi-meta"><span class="pi-name"></span>
-        <span class="pi-sub">Cloud backup · saved ${new Date(p.savedAt || Date.now()).toLocaleString()}</span></span>
-        <button class="btn btn-panel cloud-open" type="button" style="padding:7px 14px;font-size:13px">Open</button>
-        <button class="btn btn-panel cloud-del" type="button" style="padding:7px 12px;font-size:13px" title="Delete this cloud backup">✕</button>`;
+      row.className = "proj-card";
+      let tracks = 0;
+      try { tracks = trackCount(JSON.parse(p.data)); } catch { tracks = 0; }
+      const isNewest = (p.savedAt || 0) > dashNewestTs;
+      if (isNewest) { dashNewestTs = p.savedAt || 0; listEl.querySelectorAll(".pc-active").forEach(e => e.remove()); }
+      row.innerHTML = projCardHTML({ thumb: p.thumb || null, savedAt: p.savedAt }, { active: isNewest, attr: "", tracks, cloud: true });
+      row.querySelector("[data-open]").classList.add("cloud-open");
+      row.querySelector("[data-del]").classList.add("cloud-del");
       row.querySelector(".pi-name").textContent = p.name;
       row.querySelector(".cloud-del").addEventListener("click", () => {
         pendingDelName = p.name;
@@ -2260,7 +2313,7 @@ async function appendCloudProjects(listEl, localNames, filter) {
       row.querySelector(".cloud-open").addEventListener("click", async () => {
         try {
           const rec = JSON.parse(p.data);
-          await idbPut("projects", { ...rec, savedAt: Date.now() });
+          await idbPut("projects", { ...rec, savedAt: Date.now(), thumb: p.thumb || null });
           if (await loadProject(p.name)) {
             $("#studioApp").scrollIntoView({ behavior: "smooth" });
             setNote(`Cloud project “${p.name}” restored and opened.`);
