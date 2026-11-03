@@ -329,3 +329,9 @@ body.gate-open { overflow: hidden; }
 @media (max-width: 620px) { #projList { grid-template-columns: 1fr; } }
 
 .dash-tb-actions { display: inline-flex; gap: 9px; align-items: center; margin-left: auto; margin-right: 10px; }
+
+/* P1 fixes: card buttons fit + profile-card cover geometry */
+.dash-card-btns { flex-wrap: wrap; }
+.dash-card-btns .btn { flex: 1 1 130px; font-size: 13px; padding: 10px 6px; letter-spacing: .2px; }
+.dash-layout .dash-cover { height: 190px; }
+.dash-layout .cover-plate { right: 128px; }
