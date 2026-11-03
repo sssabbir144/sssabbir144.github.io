@@ -994,17 +994,17 @@ const TUTORIALS = [
   ["How to Create a Character", "7:19"], ["How to Make a Cartoon Video", "6:16"],
   ["Full Studio Tutorial", "12:46"], ["Bangla Tutorial", "10:21"]];
 const TOOLS = [
-  { id: "character", icon: "🧑", name: "Character" },
-  { id: "media", icon: "🖼️", name: "Media" },
-  { id: "effect", icon: "🌧️", name: "Effect" },
-  { id: "studio", icon: "🎬", name: "Studio" },
-  { id: "assets", icon: "📦", name: "Asset Library" },
-  { id: "sprite", icon: "🐦", name: "Sprite Sheet" },
-  { id: "sounds", icon: "🔊", name: "Sounds" },
-  { id: "ik", icon: "🦴", name: "Anim IK" },
-  { id: "eraser", icon: "🧽", name: "Eraser" },
-  { id: "tutorial", icon: "▶️", name: "Tutorial" },
-  { id: "cinema", icon: "🎥", name: "Cinema" }
+  { id: "character", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="4.8" r="2.2"/><path d="M14.8 7.2 11.8 12.5"/><path d="M13.9 9.2 17 11l-1.6 2.6"/><path d="M13.9 9.2 10.4 10.8l1.4 2.6"/><path d="M11.8 12.5 16.2 14.8l2 4"/><path d="M11.8 12.5 8.6 15.8 5.2 14.6"/></svg>', name: "Character" },
+  { id: "media", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.8a2 2 0 0 1 2-2h3.4l2.1 2.4h7.5a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>', name: "Media" },
+  { id: "effect", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h8M18 7h2M4 12h2M12 12h8M4 17h10M20 17h0"/><circle cx="15" cy="7" r="2.1"/><circle cx="9" cy="12" r="2.1"/><circle cx="17" cy="17" r="2.1"/></svg>', name: "Effect" },
+  { id: "studio", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.4"/><path d="M12 8.2V14"/><path d="M12 10.2 8.2 13.2"/><path d="M12 10.2l3.8 2.2"/><path d="M12 14l-2.8 6"/><path d="M12 14l3 6"/></svg>', name: "Studio" },
+  { id: "assets", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.6" r="3.4"/><path d="M5.2 20.4c.8-3.9 3.5-5.8 6.8-5.8s6 1.9 6.8 5.8"/></svg>', name: "Asset Library" },
+  { id: "sprite", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 12h16"/></svg>', name: "Sprite Sheet" },
+  { id: "sounds", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M5 10v4"/><path d="M9.5 7v10"/><path d="M14 4.5v15"/><path d="M18.5 8v8"/></svg>', name: "Sounds" },
+  { id: "ik", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="15.5" cy="4.6" r="2.2"/><path d="M13.8 7.6 12 13"/><path d="M13.8 7.6 9 10l-1.6 3.4"/><path d="M12 13 8.8 16.6l1 4"/><path d="M12 13l3.8 3 2.8 2.4"/></svg>', name: "Anim IK" },
+  { id: "eraser", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 15.4 15.2 6.6a1.9 1.9 0 0 1 2.7 0l1.1 1.1a1.9 1.9 0 0 1 0 2.7l-7.6 7.6H7.6a1.9 1.9 0 0 1-1.9-1.9v-.1a1.9 1.9 0 0 1 .7-.6z"/><path d="M5 20.8h14"/></svg>', name: "Eraser" },
+  { id: "tutorial", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="12" height="11" rx="2"/><path d="M15 10.8 20.5 7.6v9.8L15 14.2"/></svg>', name: "Tutorial" },
+  { id: "cinema", icon: '<svg viewBox="0 0 24 24" fill="#a259e6"><path d="M8.8 5.9c0-.9 1-1.5 1.8-1L19 11a1.15 1.15 0 0 1 0 2l-8.4 6.1c-.8.5-1.8-.1-1.8-1z"/></svg>', name: "Cinema" }
 ];
 const rail = $("#toolRail"), panel = $("#toolPanel");
 TOOLS.forEach((t, i) => {
