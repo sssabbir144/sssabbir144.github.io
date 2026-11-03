@@ -353,3 +353,10 @@ body.gate-open { overflow: hidden; }
 .cs-swatches { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 14px; }
 .cs-swatch { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; padding: 0; }
 @media (max-width: 900px) { .cs-layout { grid-template-columns: 1fr; } }
+
+#studioApp{position:relative}
+.app-version{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--muted);z-index:6;pointer-events:none;letter-spacing:.4px}
+.scene-cell{display:inline-flex;align-items:center;gap:2px}
+.scene-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 3px;border-radius:6px;line-height:1}
+.scene-del:hover{color:#ff7a7a;background:rgba(255,255,255,.06)}
+.track-row.no-layers{font-style:italic}

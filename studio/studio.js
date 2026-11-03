@@ -707,6 +707,15 @@ function restoreHistory(json) {
   restoring = false;
 }
 
+const undoB = $("#undoBtn"); if (undoB) undoB.addEventListener("click", () => {
+  if (hIdx <= 0) { setNote("Nothing to undo yet."); return; }
+  hIdx--; restoreHistory(history[hIdx]);
+});
+const redoB = $("#redoBtn"); if (redoB) redoB.addEventListener("click", () => {
+  if (hIdx >= history.length - 1) { setNote("Nothing to redo yet."); return; }
+  hIdx++; restoreHistory(history[hIdx]);
+});
+
 /* ---------------- Timeline ---------------- */
 const fmt = s => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const totalDur = () => project.scenes.reduce((a, s) => a + s.duration, 0);
@@ -723,20 +732,42 @@ function drawPlayhead() {
 }
 function renderScenes() {
   const strip = $("#sceneStrip");
-  $$(".scene-chip", strip).forEach(c => c.remove());
+  $$(".scene-cell", strip).forEach(c => c.remove());
   project.scenes.forEach((s, i) => {
+    const cell = document.createElement("span");
+    cell.className = "scene-cell";
     const b = document.createElement("button");
     b.className = "scene-chip" + (i === curScene ? " active" : "");
     b.type = "button";
     b.innerHTML = `${s.name} <span class="sc-dur">${s.duration}s</span>`;
     b.addEventListener("click", () => { curScene = i; playT = 0; selId = null; renderScenes(); renderTracks(); drawStage(); drawPlayhead(); });
-    strip.insertBefore(b, $("#addSceneBtn"));
+    cell.appendChild(b);
+    if (project.scenes.length > 1) {
+      const del = document.createElement("button");
+      del.className = "scene-del"; del.type = "button"; del.textContent = "🗑"; del.title = `Delete ${s.name}`; del.setAttribute("aria-label", `Delete ${s.name}`);
+      del.addEventListener("click", () => {
+        const nm = project.scenes[i].name;
+        project.scenes.splice(i, 1);
+        if (curScene >= project.scenes.length) curScene = project.scenes.length - 1;
+        playT = 0; selId = null;
+        pushHistory(); renderScenes(); renderTracks(); drawStage(); drawPlayhead();
+        setNote(`Scene “${nm}” deleted.`);
+      });
+      cell.appendChild(del);
+    }
+    strip.insertBefore(cell, $("#addSceneBtn"));
   });
 }
 function renderTracks() {
   const wrap = $("#trackRows");
   wrap.innerHTML = "";
   const sc = scene();
+  if (!sc.objects.length) {
+    const nr = document.createElement("div");
+    nr.className = "track-row no-layers";
+    nr.innerHTML = `<span class="track-name" style="opacity:.55">No layers</span>`;
+    wrap.appendChild(nr);
+  }
   for (const o of sc.objects) {
     const row = document.createElement("div");
     row.className = "track-row";
@@ -953,12 +984,15 @@ const TUTORIALS = [
 const TOOLS = [
   { id: "character", icon: "🧑", name: "Character" },
   { id: "media", icon: "🖼️", name: "Media" },
-  { id: "effect", icon: "🌧️", name: "Effects" },
+  { id: "effect", icon: "🌧️", name: "Effect" },
   { id: "studio", icon: "🎬", name: "Studio" },
   { id: "assets", icon: "📦", name: "Asset Library" },
-  { id: "speech", icon: "🎙️", name: "Speech" },
+  { id: "sprite", icon: "🐦", name: "Sprite Sheet" },
   { id: "sounds", icon: "🔊", name: "Sounds" },
-  { id: "search", icon: "🔍", name: "Search" }
+  { id: "ik", icon: "🦴", name: "Anim IK" },
+  { id: "eraser", icon: "🧽", name: "Eraser" },
+  { id: "tutorial", icon: "▶️", name: "Tutorial" },
+  { id: "cinema", icon: "🎥", name: "Cinema" }
 ];
 const rail = $("#toolRail"), panel = $("#toolPanel");
 TOOLS.forEach((t, i) => {
@@ -1068,19 +1102,52 @@ const PANELS = {
         <input type="file" id="libImport" accept="application/json" hidden></label>
       ${note("Owner uploads are stored in this browser for now; cloud storage (Phase F) will carry them to every visitor. Use the backup file to keep them safe and move them later.")}
     </details>`,
+  sprite: () => `<h4>Sprite Sheet</h4>
+    <p class="panel-sub">Ready animation packs — 6 frames each. Add one, press Play, and it moves; keyframes can carry it across the scene.</p>
+    ${[["bird", "Bird Fly"], ["walkers", "Boy and Girl Walking"], ["boy", "Boy Walking"], ["dog", "Dog Walk"], ["girl", "Girl Walk"], ["cat", "Cat Walk"]].map(s =>
+      `<div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🐾</span><span class="mc-name">${s[1]}</span>
+      <button class="btn btn-panel panel-btn" data-sprite="${s[0]}|${s[1]}" type="button">Add to Timeline</button></div>`).join("")}`,
   sounds: () => `<h4>Sounds</h4>
+    ${chips(["All", "BGM", "SFX", "Voice"], 3)}
     <div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🎵</span><span class="mc-name">Background Music &amp; Effects</span>
-      <span class="panel-sub" style="display:block;margin:4px 0 0">A starter library is included. Add full tracks from Media → Audio, and voice from Speech.</span></div>`,
-  speech: () => `<h4>Speech</h4>
+      <span class="panel-sub" style="display:block;margin:4px 0 0">A starter library is included; more tracks are being added.</span></div>
+    <h4 style="margin-top:14px">Voice</h4>
     <p class="panel-sub">Record your voice or upload audio — it becomes this scene's voice track and plays during playback.</p>
     <button class="btn btn-accent panel-btn" id="recordBtn" type="button">● Record Voice</button>
     <div id="recordOut"></div>
     <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Upload Audio
       <input type="file" accept="audio/*" id="audioUpload" hidden></label>
     <div id="audioOut"></div>`,
-  search: () => `<h4>Search</h4>
-    <input type="search" id="libSearch" placeholder="Search characters, backgrounds, props..." aria-label="Search the library" style="width:100%">
-    <div id="libResults" style="margin-top:10px"><p class="panel-sub">Type to search the whole library — tap a result to add it to your scene.</p></div>`
+  ik: () => {
+    const o = selObj();
+    const pose = (o && o.pose) || { arm: 0, leg: 0, head: 0, lean: 0 };
+    return `<h4>Anim IK</h4>
+    <p class="panel-sub">Turn any 2D character image into an animated puppet with IK joints, and pose built-in characters joint by joint.</p>
+    <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">Add 2D Character Image
+      <input type="file" accept="image/*" data-upload hidden></label>
+    <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Add Full Body Image
+      <input type="file" accept="image/*" data-upload hidden></label>
+    <p class="panel-sub" style="margin-top:12px"><strong>IK joints</strong> — Head · Neck · Shoulder L/R · Elbow L/R · Hand L/R · Hip L/R · Knee L/R · Foot L/R.</p>
+    <p class="panel-sub">${o && o.type === "char" ? `Posing: <strong>${o.name}</strong>` : "Select a character on the canvas to pose it."}</p>
+    <label class="slider-row">Arm swing <input type="range" id="ikArm" min="-70" max="70" value="${pose.arm || 0}"></label>
+    <label class="slider-row">Leg swing <input type="range" id="ikLeg" min="-70" max="70" value="${pose.leg || 0}"></label>
+    <label class="slider-row">Head tilt <input type="range" id="ikHead" min="-40" max="40" value="${pose.head || 0}"></label>
+    <label class="slider-row">Body lean <input type="range" id="ikLean" min="-30" max="30" value="${pose.lean || 0}"></label>
+    <button class="btn btn-panel panel-btn" id="ikOutlineBtn" type="button">${o && o.outline ? "Hide Body Outline" : "Draw Body Outline"}</button>
+    <button class="btn btn-panel panel-btn" id="ikResetBtn" type="button">Reset Pose</button>
+    ${note("On the original, Anim IK is a Pro feature in Advanced Mode; here it is open until plans activate (Phase F).")}`;
+  },
+  eraser: () => `<h4>Eraser</h4>
+    <p class="panel-sub">Remove backgrounds and clean up images in the Photo Editor.</p>
+    <button class="btn btn-accent panel-btn" id="openEraserBtn" type="button">Open Photo Editor</button>`,
+  tutorial: () => `<h4>Tutorial</h4>
+    <p class="panel-sub">Learn the studio step by step.</p>
+    ${TUTORIALS.map(t => `<div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">▶️</span>
+      <span class="mc-name">${t[0]}</span><span class="panel-sub" style="display:block;margin:2px 0 0">${t[1]}</span></div>`).join("")}
+    ${note("Tutorial videos are being recorded and will play right here.")}`,
+  cinema: () => `<h4>Cinema</h4>
+    <p class="panel-sub">Watch Ss Animation cartoons on YouTube.</p>
+    <button class="btn btn-accent panel-btn" id="openCinemaBtn" type="button">Open Cinema</button>`
 };
 async function attachVoice(blob, label) {
   const assetId = nid("vo");
@@ -1138,31 +1205,17 @@ function wirePanel() {
     else { $$(".chip", panel).forEach(x => x.classList.remove("active")); c.classList.add("active"); }
   }));
   const ms = $("#mediaSoundsBtn"); if (ms) ms.addEventListener("click", () => selectTool("sounds"));
-  const ls = $("#libSearch");
-  if (ls) ls.addEventListener("input", () => {
-    const q = ls.value.trim().toLowerCase(), box = $("#libResults");
-    if (!q) { box.innerHTML = `<p class="panel-sub">Type to search the whole library — tap a result to add it to your scene.</p>`; return; }
-    const hits = [];
-    Object.keys(allPresets()).forEach(n => { if (n.toLowerCase().includes(q)) hits.push({ kind: "char", name: n, sub: "Character" }); });
-    BG_LIST.forEach(([id, n]) => { if (n.toLowerCase().includes(q)) hits.push({ kind: "bg", id, name: n, sub: "Background" }); });
-    PROP_LIST.forEach(([e, n, pro]) => { if (n.toLowerCase().includes(q)) hits.push({ kind: "prop", emoji: e, name: n, pro, sub: "Prop" }); });
-    libraryItems.forEach(it => { if (it.name.toLowerCase().includes(q)) hits.push({ kind: "lib", id: it.id, name: it.name, sub: "Owner's Library" }); });
-    box.innerHTML = hits.length ? hits.slice(0, 24).map((h, i) =>
-      `<div class="mini-card clickable" data-searchhit="${i}"><span class="mc-ico">${h.kind === "prop" ? h.emoji : h.kind === "bg" ? "🏞️" : h.kind === "char" ? "🧑" : "🗂️"}</span><span class="mc-name">${h.name}</span><span class="mc-add">${h.sub} — tap to add</span></div>`).join("")
-      : `<p class="panel-sub">Nothing matches that search.</p>`;
-    $$("[data-searchhit]", box).forEach(c => c.addEventListener("click", async () => {
-      const h = hits[+c.dataset.searchhit];
-      if (h.kind === "char") addCharacter(h.name);
-      else if (h.kind === "bg") { scene().bg = h.id; pushHistory(); drawStage(); setNote(`"${h.name}" is now this scene's background.`); }
-      else if (h.kind === "prop") { if (h.pro && !isPro()) { setNote(`"${h.name}" is a Pro asset — members unlock the full library.`); openPro(); return; } addProp(h.emoji, h.name); }
-      else {
-        const it = libraryItems.find(x => x.id === h.id); if (!it) return;
-        if (it.pro && !isPro()) { setNote(`"${it.name}" is a Pro asset.`); openPro(); return; }
-        if (it.kind === "background") { scene().bgAsset = it.assetId; pushHistory(); drawStage(); setNote(`"${it.name}" is now this scene's background.`); }
-        else { const rec = await idbGet("assets", it.assetId); if (rec && rec.blob) addImageFile(rec.blob).catch(() => {}); }
-      }
-    }));
+  const se = $("#sendEraserBtn"); if (se) se.addEventListener("click", async () => {
+    const o = selObj();
+    if (o && o.type === "image") {
+      const rec = await idbGet("assets", o.assetId);
+      if (rec && rec.blob) { openEraser(rec.blob); return; }
+    }
+    openEraser();
+    setNote("Photo Editor open — use Open to load an image, or select an image on the canvas first and use Send Image to Eraser.");
   });
+  const oe = $("#openEraserBtn"); if (oe) oe.addEventListener("click", openEraser);
+  const oc = $("#openCinemaBtn"); if (oc) oc.addEventListener("click", () => openModal("#cinemaModal"));
   const rb = $("#recordBtn");
   if (rb) rb.addEventListener("click", async () => {
     if (mediaRec && mediaRec.state === "recording") { mediaRec.stop(); rb.textContent = "● Record Voice"; return; }
@@ -1423,6 +1476,8 @@ function wireFx() {
   });
 }
 function selectTool(id) {
+  if (id === "eraser") { openEraser(); return; }
+  if (id === "cinema") { openModal("#cinemaModal"); return; }
   if (id === "studio") {
     const o = selObj();
     if (o && o.type === "char") openCharStudio(o.params, o.name, o.id);
@@ -1785,6 +1840,148 @@ $("#paySubmitBtn").addEventListener("click", async () => {
     : "Received on this device — thank you! The cloud copy could not be saved just now, so please also send your Transaction ID on WhatsApp (link on the dashboard) so we can verify and activate Pro within a few minutes to 24 hours.";
 });
 
+/* ---------------- Eraser PhotoEditor (real engine) ---------------- */
+const er = { tool: "eraser", drawing: false, sel: null, lasso: [], last: null, has: false };
+function erCtxs() { return { main: $("#erCanvas").getContext("2d"), guide: $("#erGuide").getContext("2d") }; }
+function erPos(e) {
+  const r = $("#erCanvas").getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * $("#erCanvas").width / r.width,
+    y: (e.clientY - r.top) * $("#erCanvas").height / r.height
+  };
+}
+function erLoadBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const maxW = 1100, maxH = 640;
+    const s = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+    const w = Math.max(2, Math.round(img.naturalWidth * s)), h = Math.max(2, Math.round(img.naturalHeight * s));
+    for (const id of ["erCanvas", "erGuide"]) { const c = $("#" + id); c.width = w; c.height = h; }
+    erCtxs().main.drawImage(img, 0, 0, w, h);
+    er.has = true; er.sel = null; er.lasso = [];
+    $("#erHint").textContent = "Image loaded — erase the background, then Send to Studio or Export the transparent PNG.";
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+function openEraser(withBlob) {
+  $("#eraserOverlay").hidden = false;
+  if (withBlob) erLoadBlob(withBlob);
+}
+$("#eraserCloseBtn").addEventListener("click", () => { $("#eraserOverlay").hidden = true; });
+$("#erOpen").addEventListener("change", (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) erLoadBlob(f);
+});
+$$("[data-ertool]").forEach(b => b.addEventListener("click", () => {
+  er.tool = b.dataset.ertool;
+  $$("[data-ertool]").forEach(x => x.classList.toggle("active", x === b));
+}));
+$("#erZoom").addEventListener("input", (e) => {
+  $("#erStage").style.transform = `scale(${e.target.value / 100})`;
+});
+function erGuideDraw() {
+  const { guide } = erCtxs();
+  const c = $("#erGuide");
+  guide.clearRect(0, 0, c.width, c.height);
+  guide.strokeStyle = "#F5C518"; guide.lineWidth = 2; guide.setLineDash([7, 5]);
+  if (er.sel) guide.strokeRect(er.sel.x, er.sel.y, er.sel.w, er.sel.h);
+  if (er.lasso.length > 1) {
+    guide.beginPath();
+    guide.moveTo(er.lasso[0][0], er.lasso[0][1]);
+    for (const p of er.lasso.slice(1)) guide.lineTo(p[0], p[1]);
+    guide.closePath(); guide.stroke();
+  }
+  guide.setLineDash([]);
+}
+(function erBind() {
+  const cv = $("#erCanvas");
+  const stamp = (p) => {
+    const { main } = erCtxs();
+    const size = +$("#erSize").value;
+    main.save();
+    if (er.tool === "eraser") {
+      main.globalCompositeOperation = "destination-out";
+      main.beginPath(); main.arc(p.x, p.y, size / 2, 0, 7); main.fill();
+    } else if (er.tool === "brush") {
+      main.globalCompositeOperation = "source-over";
+      main.fillStyle = $("#erColor").value;
+      main.beginPath(); main.arc(p.x, p.y, size / 2, 0, 7); main.fill();
+    }
+    main.restore();
+  };
+  cv.addEventListener("pointerdown", (e) => {
+    if (!er.has) return;
+    const p = erPos(e);
+    cv.setPointerCapture(e.pointerId);
+    if (er.tool === "picker") {
+      const d = erCtxs().main.getImageData(Math.max(0, Math.min(cv.width - 1, Math.round(p.x))), Math.max(0, Math.min(cv.height - 1, Math.round(p.y))), 1, 1).data;
+      const hex = "#" + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, "0")).join("");
+      $("#erColor").value = hex;
+      setNote(`Colour picked: ${hex} — the Brush now paints with it.`);
+      return;
+    }
+    er.drawing = true; er.last = p;
+    if (er.tool === "select") { er.sel = { x: p.x, y: p.y, w: 0, h: 0 }; erGuideDraw(); }
+    else if (er.tool === "lasso") { er.lasso = [[p.x, p.y]]; erGuideDraw(); }
+    else stamp(p);
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (!er.drawing || !er.has) return;
+    const p = erPos(e);
+    if (er.tool === "select" && er.sel) {
+      er.sel.w = p.x - er.sel.x; er.sel.h = p.y - er.sel.y; erGuideDraw();
+    } else if (er.tool === "lasso") {
+      er.lasso.push([p.x, p.y]); erGuideDraw();
+    } else if (er.tool === "eraser" || er.tool === "brush") {
+      const dx = p.x - er.last.x, dy = p.y - er.last.y;
+      const steps = Math.max(1, Math.floor(Math.hypot(dx, dy) / 6));
+      for (let i = 1; i <= steps; i++) stamp({ x: er.last.x + dx * i / steps, y: er.last.y + dy * i / steps });
+      er.last = p;
+    }
+  });
+  const end = () => { er.drawing = false; };
+  cv.addEventListener("pointerup", end);
+  cv.addEventListener("pointercancel", end);
+})();
+$("#erClearSelBtn").addEventListener("click", () => {
+  if (!er.has) return;
+  const { main, guide } = erCtxs();
+  main.save();
+  main.globalCompositeOperation = "destination-out";
+  if (er.lasso.length > 2) {
+    main.beginPath();
+    main.moveTo(er.lasso[0][0], er.lasso[0][1]);
+    for (const p of er.lasso.slice(1)) main.lineTo(p[0], p[1]);
+    main.closePath(); main.fill();
+  } else if (er.sel) {
+    main.fillRect(er.sel.x, er.sel.y, er.sel.w, er.sel.h);
+  }
+  main.restore();
+  er.sel = null; er.lasso = [];
+  guide.clearRect(0, 0, $("#erGuide").width, $("#erGuide").height);
+  setNote("Selected area cleared to transparent.");
+});
+$("#erExportBtn").addEventListener("click", () => {
+  if (!er.has) { setNote("Open an image first."); return; }
+  $("#erCanvas").toBlob((b) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = "ss-animation-erased.png";
+    a.click();
+    setNote("Exported as a transparent PNG.");
+  }, "image/png");
+});
+$("#sendToStudioBtn").addEventListener("click", () => {
+  if (!er.has) { $("#eraserOverlay").hidden = true; return; }
+  $("#erCanvas").toBlob(async (b) => {
+    $("#eraserOverlay").hidden = true;
+    if (b) await addImageFile(new File([b], "erased-image.png", { type: "image/png" }));
+    setNote("Edited image sent to the Studio canvas.");
+  }, "image/png");
+});
+
 /* ---------------- Dashboard (first interface) ---------------- */
 const OWNER_EMAIL = "sssabbir7888@gmail.com";
 let dashNewestTs = 0;
@@ -1874,6 +2071,8 @@ async function newProject() {
   setNote("New project started — it auto-saves here as you work.");
 }
 $("#payNowBtn").addEventListener("click", () => openPro());
+const gpb = $("#getProBtn"); if (gpb) gpb.addEventListener("click", () => openPro());
+const vob = $("#voiceBtn"); if (vob) vob.addEventListener("click", () => selectTool("sounds"));
 const msb = $("#manageSubBtn"); if (msb) msb.addEventListener("click", () => openPro());
 const dpb = $("#dashPayBtn"); if (dpb) dpb.addEventListener("click", () => openPro());
 const dlb = $("#dashLogoutBtn"); if (dlb) dlb.addEventListener("click", () => { signOutUser(); });

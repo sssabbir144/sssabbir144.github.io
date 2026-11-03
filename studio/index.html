@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=21">
+<link rel="stylesheet" href="studio.css?v=22">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -168,6 +168,7 @@
         <input class="project-name" id="projectName" type="text" value="Untitled Project" aria-label="Project name">
         <span class="autosave-badge" id="autosaveBadge">● Auto-saved</span>
         <div class="app-actions">
+          <button class="btn btn-accent" id="getProBtn" type="button">Get Pro</button>
           <button class="btn btn-panel" id="saveProjectBtn" type="button">Save</button>
           <button class="btn btn-accent" id="exportBtn" type="button">Export</button>
           <button class="avatar-btn" id="profileBtn" type="button" aria-label="Profile">S</button>
@@ -218,10 +219,13 @@
             <button class="tl-btn" id="dupSceneBtn" type="button">Duplicate</button>
             <button class="tl-btn" id="splitSceneBtn" type="button">Split</button>
             <button class="tl-btn" id="cameraBtn" type="button">Camera</button>
+            <button class="tl-btn" id="voiceBtn" type="button">Voice</button>
             <button class="tl-btn" id="keyBtn" type="button" title="Add a keyframe for the selected object at the playhead">◆ Keyframe</button>
             <button class="tl-btn" id="keyDelBtn" type="button" title="Delete the keyframe at the playhead">✕ Key</button>
           </div>
           <div class="timeline-tools">
+            <button class="tl-btn" id="undoBtn" type="button" title="Undo">↩ Undo</button>
+            <button class="tl-btn" id="redoBtn" type="button" title="Redo">↪ Redo</button>
             <label class="zoom-ctl">Zoom
               <input type="range" id="canvasZoom" min="50" max="150" value="100">
             </label>
@@ -239,6 +243,7 @@
       </div>
     </div>
     <p class="studio-note" id="saveNote" role="status"></p>
+    <div class="app-version" aria-hidden="true">v1.0.0</div>
   </section>
 
   <!-- ============ PRICING ============ -->
@@ -422,6 +427,50 @@
 </footer>
 
 <script data-goatcounter="https://sssabbir144.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-<script src="studio.js?v=23"></script>
+<div class="modal-backdrop" id="cinemaModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cinemaTitle">
+    <div class="modal-head"><h3 id="cinemaTitle">Cinema</h3><button class="icon-x" data-close type="button" aria-label="Close">✕</button></div>
+    <p class="modal-sub">Watch Ss Animation cartoons on our YouTube channel — it opens in a new tab.</p>
+    <div class="modal-actions">
+      <button class="btn btn-panel" data-close type="button">Stay Here</button>
+      <a class="btn btn-accent" href="https://www.youtube.com/@SsAnimation7888" target="_blank" rel="noopener">Open Cinema</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ERASER / PHOTO EDITOR OVERLAY ============ -->
+<div class="editor-overlay" id="eraserOverlay" hidden>
+  <div class="editor-frame">
+    <div class="editor-head">
+      <strong>Photo Editor — Eraser</strong>
+      <div class="editor-actions">
+        <label class="btn btn-panel" style="cursor:pointer">Open
+          <input type="file" accept="image/*" id="erOpen" hidden></label>
+        <button class="btn btn-panel" id="erExportBtn" type="button">Export</button>
+        <button class="btn btn-accent" id="sendToStudioBtn" type="button">Send to Studio</button>
+        <button class="icon-x" id="eraserCloseBtn" type="button" aria-label="Close editor">✕</button>
+      </div>
+    </div>
+    <div class="editor-tools" role="group" aria-label="Photo editor tools">
+      <button class="tl-btn" data-ertool="select" type="button">Selection</button>
+      <button class="tl-btn" data-ertool="lasso" type="button">Lasso</button>
+      <button class="tl-btn active" data-ertool="eraser" type="button">Eraser</button>
+      <button class="tl-btn" data-ertool="brush" type="button">Brush</button>
+      <button class="tl-btn" data-ertool="picker" type="button">Pick Colour</button>
+      <button class="tl-btn" id="erClearSelBtn" type="button">Clear Selected Area</button>
+      <label class="zoom-ctl">Size <input type="range" id="erSize" min="4" max="90" value="28"></label>
+      <label class="zoom-ctl">Colour <input type="color" id="erColor" value="#F5C518"></label>
+      <label class="zoom-ctl">Zoom <input type="range" id="erZoom" min="40" max="220" value="100"></label>
+    </div>
+    <div class="editor-canvas" id="erCanvasWrap">
+      <div class="er-stage" id="erStage">
+        <canvas id="erCanvas" width="880" height="495"></canvas>
+        <canvas id="erGuide" width="880" height="495"></canvas>
+      </div>
+      <p class="er-hint" id="erHint">Open an image to start erasing its background. Eraser removes pixels (transparent); Brush paints back; Selection/Lasso + “Clear Selected Area” removes a whole region.</p>
+    </div>
+  </div>
+</div>
+<script src="studio.js?v=24"></script>
 </body>
 </html>
