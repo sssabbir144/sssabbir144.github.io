@@ -634,9 +634,10 @@ async function autoSave() {
   try {
     project.name = $("#projectName").value.trim() || "Untitled Project";
     const all = await idbAll("projects");
-    if (!all.some(p => p.name === project.name) && all.length >= 2) return; // Free limit: no silent 3rd project
+    if (!all.some(p => p.name === project.name) && !isPro() && all.length >= 2) return; // Free limit: no silent 3rd project
     await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now() });
     localStorage.setItem("ssanim_last", project.name);
+    cloudBackupProject(false);
     renderDashboard($("#projSearch") ? $("#projSearch").value : "");
   } catch { /* storage unavailable — manual save still offered */ }
 }
@@ -853,13 +854,14 @@ async function saveProject() {
   project.name = $("#projectName").value.trim() || "Untitled Project";
   const all = await idbAll("projects");
   const exists = all.some(p => p.name === project.name);
-  if (!exists && all.length >= 2) {
+  if (!exists && !isPro() && all.length >= 2) {
     setNote("Free plan holds 2 projects — delete one from Projects, or save over an existing name.");
     return;
   }
   await idbPut("projects", { ...JSON.parse(JSON.stringify(project)), savedAt: Date.now() });
   localStorage.setItem("ssanim_last", project.name);
-  setNote(`Project “${project.name}” saved in this browser.`);
+  const cloud = await cloudBackupProject(true);
+  setNote(`Project “${project.name}” saved in this browser.${cloud ? " Cloud backup updated." : ""}`);
   renderDashboard("");
 }
 $("#saveProjectBtn").addEventListener("click", () => saveProject().catch(() => setNote("Save failed — browser storage is unavailable.")));
@@ -1113,14 +1115,14 @@ function wirePanel() {
   }));
   $$("[data-prop]", panel).forEach(c => c.addEventListener("click", () => {
     const [emoji, name, pro] = c.dataset.prop.split("|");
-    if (pro === "1") { setNote(`“${name}” is a Pro asset — members unlock the full library.`); openPro(); return; }
+    if (pro === "1" && !isPro()) { setNote(`“${name}” is a Pro asset — members unlock the full library.`); openPro(); return; }
     addProp(emoji, name);
   }));
   $$("[data-lib]", panel).forEach(c => c.addEventListener("click", async () => {
     const [action, id] = c.dataset.lib.split("|");
     const it = libraryItems.find(x => x.id === id);
     if (!it) return;
-    if (it.pro) { setNote(`“${it.name}” is a Pro asset — members unlock the full library.`); openPro(); return; }
+    if (it.pro && !isPro()) { setNote(`“${it.name}” is a Pro asset — members unlock the full library.`); openPro(); return; }
     if (action === "bg") {
       scene().bgAsset = it.assetId; pushHistory(); drawStage();
       setNote(`“${it.name}” is now this scene's background.`);
@@ -1202,15 +1204,30 @@ function wireLibrary() {
     const f = $("#libFile").files && $("#libFile").files[0];
     if (!f) { setNote("Choose an image first, then add it to the library."); return; }
     const assetId = nid("as");
-    await idbPut("assets", { id: assetId, blob: f, name: f.name, at: Date.now() });
-    await idbPut("library", {
-      id: nid("lib"), kind: $("#libKind").value,
+    const libId = nid("lib");
+    const meta = {
+      id: libId, kind: $("#libKind").value,
       name: $("#libName").value.trim() || f.name,
       pro: $("#libPlan").value === "pro", assetId, blob: f, at: Date.now()
-    });
+    };
+    await idbPut("assets", { id: assetId, blob: f, name: f.name, at: Date.now() });
+    await idbPut("library", meta);
     await loadLibrary();
     selectTool("assets");
     setNote("Added to the owner's library — find it in the Asset Library and under Media.");
+    if (fb && fb.user && cloudOk) {
+      try {
+        const { ref, uploadBytes, getDownloadURL } = fb.stM;
+        const r = ref(fb.storage, `library/${fb.user.uid}/${assetId}`);
+        await uploadBytes(r, f);
+        const url = await getDownloadURL(r);
+        const { doc, setDoc } = fb.fsM;
+        await setDoc(doc(fb.db, "users", fb.user.uid, "library", libId), {
+          kind: meta.kind, name: meta.name, pro: meta.pro, url, at: meta.at
+        });
+        setNote("Added to the owner's library — and backed up to the cloud.");
+      } catch { /* local copy stands; cloud copy is a bonus */ }
+    }
   });
   $("#libBackupBtn").addEventListener("click", async () => {
     const items = [];
@@ -1652,6 +1669,7 @@ $("#expCancelBtn").addEventListener("click", () => {
   setExpStatus("Cancelling…");
 });
 $("#exportBtn").addEventListener("click", () => {
+  if (isPro()) $("#exportWatermark").checked = false;
   $("#exportTitleInput").value = project.name || "My Cartoon";
   const t = totalDuration();
   $("#exportDuration").value = `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(Math.round(t % 60)).padStart(2, "0")}`;
@@ -1719,8 +1737,10 @@ $("#profileBtn").addEventListener("click", () => {
   $("#dashboard").scrollIntoView({ behavior: "smooth" });
 });
 $("#googleSignInBtn").addEventListener("click", () => {
-  setNote("Google sign-in switches on with cloud accounts (Pro update). Your projects are safe in this browser until then.");
   closeModal($("#profileModal"));
+  if (fb && fb.user) { signOutUser(); return; }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  gateStatus("Tap Continue with Google to sign in.");
 });
 
 /* ---------------- Pro / manual payment ---------------- */
@@ -1742,7 +1762,7 @@ $$(".pay-method").forEach(b => b.addEventListener("click", () => {
   $$(".pay-method").forEach(x => x.classList.toggle("active", x === b));
   $("#payMethodName").textContent = payMethod;
 }));
-$("#paySubmitBtn").addEventListener("click", () => {
+$("#paySubmitBtn").addEventListener("click", async () => {
   const sender = $("#paySender").value.trim(), trx = $("#payTrx").value.trim();
   if (sender.length < 6 || trx.length < 4) {
     $("#payNote").textContent = "Please add your sender number and the Transaction ID so we can verify your payment.";
@@ -1751,7 +1771,20 @@ $("#paySubmitBtn").addEventListener("click", () => {
   const subs = JSON.parse(localStorage.getItem("ssanim_pay_subs") || "[]");
   subs.push({ plan: payPlan, method: payMethod, sender, trx, at: new Date().toISOString() });
   localStorage.setItem("ssanim_pay_subs", JSON.stringify(subs));
-  $("#payNote").textContent = "Received — thank you! We verify payments by hand and activate Pro within a few minutes to 24 hours.";
+  let cloudSent = false;
+  if (fb && fb.user && cloudOk) {
+    try {
+      const { collection, addDoc, serverTimestamp } = fb.fsM;
+      await addDoc(collection(fb.db, "payments"), {
+        uid: fb.user.uid, email: fb.user.email || "", plan: payPlan, method: payMethod,
+        sender, trx, status: "pending", createdAt: serverTimestamp()
+      });
+      cloudSent = true;
+    } catch { cloudSent = false; }
+  }
+  $("#payNote").textContent = cloudSent
+    ? "Received — thank you! We verify payments by hand and activate Pro within a few minutes to 24 hours."
+    : "Received on this device — thank you! The cloud copy could not be saved just now, so please also send your Transaction ID on WhatsApp (link on the dashboard) so we can verify and activate Pro within a few minutes to 24 hours.";
 });
 
 /* ---------------- Eraser PhotoEditor (real engine) ---------------- */
@@ -1919,6 +1952,7 @@ async function renderDashboard(filter) {
       setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
     }
   }));
+  appendCloudProjects(listEl, new Set(all.map(p => p.name)), filter);
 }
 function newProject() {
   stopPlayback();
@@ -1931,8 +1965,7 @@ function newProject() {
   setNote("New project started — it auto-saves here as you work.");
 }
 $("#payNowBtn").addEventListener("click", () => openPro());
-$("#powerBtn").addEventListener("click", () =>
-  setNote("You are using Ss Animation in this browser — accounts and sign-out arrive with the cloud update."));
+$("#powerBtn").addEventListener("click", () => { signOutUser(); });
 $("#newProjBtn").addEventListener("click", newProject);
 $("#createProjBtn").addEventListener("click", newProject);
 $("#projSearch").addEventListener("input", (e) => renderDashboard(e.target.value));
@@ -1997,18 +2030,164 @@ function wireCharStudio() {
   });
 }
 
-/* ---------------- Login landing (entrance) ----------------
-   Interface now; real Google sign-in activates with Firebase (Phase F).
-   Until then the button enters the studio without blocking anyone. */
-document.body.classList.add("gate-open");
-$("#googleGateBtn").addEventListener("click", () => {
-  const gate = $("#loginGate");
-  gate.classList.add("hide");
+/* ---------------- Firebase — accounts, cloud, Pro (Phase F) ---------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyCmLReONpHlU9zHjDnMrXizCoNKT4qu1MU",
+  authDomain: "ss-animation-studio.firebaseapp.com",
+  projectId: "ss-animation-studio",
+  storageBucket: "ss-animation-studio.firebasestorage.app",
+  messagingSenderId: "169876466549",
+  appId: "1:169876466549:web:d2f79bd4be0c1cfe8c413c"
+};
+let fb = null, userPlan = "free", cloudOk = false, lastCloudSave = 0;
+const isPro = () => userPlan === "pro";
+function gateStatus(t) { const el = $("#gateStatus"); if (el) el.textContent = t || ""; }
+function dismissGate() {
+  const g = $("#loginGate");
+  g.classList.add("hide");
   document.body.classList.remove("gate-open");
-  setTimeout(() => { gate.style.display = "none"; }, 480);
+  setTimeout(() => { g.style.display = "none"; }, 480);
+}
+function showGate() {
+  const g = $("#loginGate");
+  g.style.display = "";
+  document.body.classList.add("gate-open");
+  requestAnimationFrame(() => g.classList.remove("hide"));
+  window.scrollTo({ top: 0 });
+}
+function applyPlan(plan) {
+  userPlan = plan === "pro" ? "pro" : "free";
+  const b = $("#planBadge");
+  b.textContent = isPro() ? "PRO MEMBER" : "FREE USER";
+  b.classList.toggle("pro", isPro());
+}
+function personalize(user) {
+  $("#dashAvatar").src = user.photoURL || "../assets/profile.jpg";
+  $("#dashName").textContent = user.displayName || "Ss Animation";
+  $("#dashHandle").textContent = user.email || "";
+}
+async function onUser(user) {
+  if (!user) { if (fb) fb.user = null; showGate(); return; }
+  fb.user = user;
+  dismissGate();
+  personalize(user);
   $("#dashboard").scrollIntoView({ behavior: "smooth" });
-  setNote("Welcome to Ss Animation! Google sign-in switches on with accounts (Phase F) — the studio is open, start creating.");
+  setNote(`Welcome, ${user.displayName || "creator"}! You are signed in — projects save in this browser and back up to your cloud.`);
+  try {
+    const { doc, setDoc, getDoc } = fb.fsM;
+    const ref = doc(fb.db, "users", user.uid);
+    await setDoc(ref, {
+      name: user.displayName || "", email: user.email || "", photo: user.photoURL || "",
+      lastLogin: Date.now()
+    }, { merge: true });
+    const snap = await getDoc(ref);
+    cloudOk = true;
+    applyPlan(snap.exists() ? snap.data().plan : "free");
+  } catch {
+    cloudOk = false;
+    applyPlan("free");
+  }
+  renderDashboard($("#projSearch") ? $("#projSearch").value : "");
+}
+async function initFirebase() {
+  try {
+    const [appM, authM, fsM, stM] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js")
+    ]);
+    const app = appM.initializeApp(firebaseConfig);
+    fb = {
+      auth: authM.getAuth(app), db: fsM.getFirestore(app), storage: stM.getStorage(app),
+      authM, fsM, stM, user: null
+    };
+    authM.onAuthStateChanged(fb.auth, (u) => { onUser(u).catch(() => {}); });
+  } catch {
+    fb = null;
+    gateStatus("Sign-in could not load — check your connection, then reload this page.");
+  }
+}
+document.body.classList.add("gate-open");
+gateStatus("Loading sign-in…");
+initFirebase();
+$("#googleGateBtn").addEventListener("click", async () => {
+  if (!fb) { gateStatus("Sign-in is still loading — check your connection and try again in a moment."); return; }
+  gateStatus("Opening Google sign-in…");
+  try {
+    await fb.authM.signInWithPopup(fb.auth, new fb.authM.GoogleAuthProvider());
+    gateStatus("");
+  } catch (e) {
+    const code = (e && e.code) || "";
+    if (code === "auth/popup-blocked") {
+      gateStatus("Popup was blocked — taking you to Google sign-in…");
+      try { await fb.authM.signInWithRedirect(fb.auth, new fb.authM.GoogleAuthProvider()); } catch { gateStatus("Sign-in failed — please try again."); }
+    } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+      gateStatus("Sign-in was closed — tap the button whenever you are ready.");
+    } else {
+      gateStatus("Sign-in did not complete — please try again.");
+    }
+  }
 });
+async function signOutUser() {
+  if (fb && fb.user) {
+    try { await fb.authM.signOut(fb.auth); } catch { /* gate reappears via auth state */ }
+    setNote("Signed out. See you soon!");
+  }
+}
+/* Cloud backup of the current project (Firestore users/{uid}/projects) */
+async function cloudBackupProject(force) {
+  if (!fb || !fb.user || !cloudOk) return false;
+  const now = Date.now();
+  if (!force && now - lastCloudSave < 15000) return false;
+  try {
+    const data = JSON.stringify(project);
+    if (data.length > 900000) return false;
+    const { doc, setDoc } = fb.fsM;
+    await setDoc(doc(fb.db, "users", fb.user.uid, "projects", encodeURIComponent(project.name || "Untitled Project")), {
+      name: project.name || "Untitled Project", data, savedAt: now
+    });
+    lastCloudSave = now;
+    return true;
+  } catch { return false; }
+}
+async function appendCloudProjects(listEl, localNames, filter) {
+  if (!fb || !fb.user || !cloudOk || !listEl) return;
+  try {
+    const { collection, getDocs } = fb.fsM;
+    const snap = await getDocs(collection(fb.db, "users", fb.user.uid, "projects"));
+    const f = (filter || "").trim().toLowerCase();
+    const extras = [];
+    snap.forEach(d => {
+      const p = d.data();
+      if (p && p.name && !localNames.has(p.name) && (!f || p.name.toLowerCase().includes(f))) extras.push(p);
+    });
+    if (!extras.length) return;
+    $("#projCount").textContent = `(${localNames.size + extras.length})`;
+    $("#projEmpty").style.display = "none";
+    for (const p of extras) {
+      const row = document.createElement("div");
+      row.className = "dash-proj-item";
+      row.innerHTML = `<span class="pi-ico">☁️</span>
+        <span class="pi-meta"><span class="pi-name"></span>
+        <span class="pi-sub">Cloud backup · saved ${new Date(p.savedAt || Date.now()).toLocaleString()}</span></span>
+        <button class="btn btn-panel" type="button" style="padding:7px 14px;font-size:13px">Open</button>`;
+      row.querySelector(".pi-name").textContent = p.name;
+      row.querySelector("button").addEventListener("click", async () => {
+        try {
+          const rec = JSON.parse(p.data);
+          await idbPut("projects", { ...rec, savedAt: Date.now() });
+          if (await loadProject(p.name)) {
+            $("#studioApp").scrollIntoView({ behavior: "smooth" });
+            setNote(`Cloud project “${p.name}” restored and opened.`);
+            renderDashboard("");
+          }
+        } catch { setNote("That cloud backup could not be opened."); }
+      });
+      listEl.appendChild(row);
+    }
+  } catch { /* cloud list unavailable — local list already shown */ }
+}
 
 /* ---------------- Init + PWA ---------------- */
 loadLibrary();
