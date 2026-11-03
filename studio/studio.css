@@ -360,3 +360,6 @@ body.gate-open { overflow: hidden; }
 .scene-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 3px;border-radius:6px;line-height:1}
 .scene-del:hover{color:#ff7a7a;background:rgba(255,255,255,.06)}
 .track-row.no-layers{font-style:italic}
+
+.btn-getpro{background:var(--panel-2);color:var(--accent);border:1px solid var(--line)}
+.btn-getpro:hover{border-color:var(--accent)}
