@@ -1,12 +1,12 @@
 /* Ss Animation — service worker (offline-first for the studio only).
    Scope is limited to /studio/ by this file's location. */
-const CACHE = "ssanim-studio-v21";
+const CACHE = "ssanim-studio-v22";
 const ASSETS = [
   "./",
   "./index.html",
   "./studio.css?v=13",
   "./studio.js?v=16",
-  "./icon.svg", "./icon-192.png?v=3", "./icon-512.png?v=3", "./icon-maskable-512.png?v=3", "./apple-touch-icon.png", "./logo-badge.png", "./logo-master.png",
+  "./icon.svg", "./icon-192.png?v=3", "./icon-512.png?v=3", "./icon-maskable-512.png?v=3", "./apple-touch-icon.png", "./logo-badge.png?v=2", "./logo-bordered-1200.png",
   "./manifest.webmanifest",
   "../site-final-v2.css?v=20261029-6"
 ];
