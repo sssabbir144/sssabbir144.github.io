@@ -88,21 +88,73 @@ let curScene = 0, selId = null, playT = 0;
 const scene = () => project.scenes[curScene];
 const selObj = () => scene().objects.find(o => o.id === selId) || null;
 
+/* ---------------- Keyframe easing + motion path (P3) ---------------- */
+function easeApply(name, k) {
+  if (name === "in") return k * k;
+  if (name === "out") return 1 - (1 - k) * (1 - k);
+  if (name === "inout") return k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  return k;
+}
+function catmullRom(p0, p1, p2, p3, k) {
+  const k2 = k * k, k3 = k2 * k;
+  return 0.5 * ((2 * p1) + (-p0 + p2) * k + (2 * p0 - 5 * p1 + 4 * p2 - p3) * k2 + (-p0 + 3 * p1 - 3 * p2 + p3) * k3);
+}
 function evalAt(o, t) {
   const base = { x: o.x, y: o.y, scale: o.scale, rot: o.rot, op: o.op };
+  if (o.pose) base.pose = { arm: o.pose.arm || 0, leg: o.pose.leg || 0, head: o.pose.head || 0, lean: o.pose.lean || 0 };
   if (!o.keys || !o.keys.length) return base;
   const ks = o.keys;
-  if (t <= ks[0].t) return { ...ks[0] };
-  if (t >= ks[ks.length - 1].t) return { ...ks[ks.length - 1] };
+  const poseOf = (k) => k.pose ? { arm: k.pose.arm || 0, leg: k.pose.leg || 0, head: k.pose.head || 0, lean: k.pose.lean || 0 } : (base.pose ? { ...base.pose } : { arm: 0, leg: 0, head: 0, lean: 0 });
+  if (t <= ks[0].t) return { x: ks[0].x, y: ks[0].y, scale: ks[0].scale, rot: ks[0].rot, op: ks[0].op, pose: poseOf(ks[0]) };
+  if (t >= ks[ks.length - 1].t) { const L = ks[ks.length - 1]; return { x: L.x, y: L.y, scale: L.scale, rot: L.rot, op: L.op, pose: poseOf(L) }; }
   for (let i = 0; i < ks.length - 1; i++) {
     if (t >= ks[i].t && t <= ks[i + 1].t) {
-      const k = (t - ks[i].t) / Math.max(0.0001, ks[i + 1].t - ks[i].t);
+      const raw = (t - ks[i].t) / Math.max(0.0001, ks[i + 1].t - ks[i].t);
+      const k = easeApply(ks[i].ease, raw);
       const out = {};
-      for (const f of ["x", "y", "scale", "rot", "op"]) out[f] = lerp(ks[i][f], ks[i + 1][f], k);
+      for (const f of ["scale", "rot", "op"]) out[f] = lerp(ks[i][f], ks[i + 1][f], k);
+      if (ks.length >= 3) {
+        const p0 = ks[Math.max(0, i - 1)], p1 = ks[i], p2 = ks[i + 1], p3 = ks[Math.min(ks.length - 1, i + 2)];
+        out.x = catmullRom(p0.x, p1.x, p2.x, p3.x, k);
+        out.y = catmullRom(p0.y, p1.y, p2.y, p3.y, k);
+      } else {
+        out.x = lerp(ks[i].x, ks[i + 1].x, k);
+        out.y = lerp(ks[i].y, ks[i + 1].y, k);
+      }
+      const pa = poseOf(ks[i]), pb = poseOf(ks[i + 1]);
+      out.pose = { arm: lerp(pa.arm, pb.arm, k), leg: lerp(pa.leg, pb.leg, k), head: lerp(pa.head, pb.head, k), lean: lerp(pa.lean, pb.lean, k) };
       return out;
     }
   }
   return base;
+}
+/* ---------------- Camera track (P3) ---------------- */
+let camRowSel = false, selKey = null;
+function evalCam(t) {
+  const sc = scene();
+  const ks = (sc && sc.camKeys) || [];
+  if (!ks.length) return { zoom: 1, x: 0, y: 0 };
+  if (t <= ks[0].t) return { zoom: ks[0].zoom, x: ks[0].x || 0, y: ks[0].y || 0 };
+  const L = ks[ks.length - 1];
+  if (t >= L.t) return { zoom: L.zoom, x: L.x || 0, y: L.y || 0 };
+  for (let i = 0; i < ks.length - 1; i++) {
+    if (t >= ks[i].t && t <= ks[i + 1].t) {
+      const raw = (t - ks[i].t) / Math.max(0.0001, ks[i + 1].t - ks[i].t);
+      const k = easeApply(ks[i].ease, raw);
+      return { zoom: lerp(ks[i].zoom, ks[i + 1].zoom, k), x: lerp(ks[i].x || 0, ks[i + 1].x || 0, k), y: lerp(ks[i].y || 0, ks[i + 1].y || 0, k) };
+    }
+  }
+  return { zoom: 1, x: 0, y: 0 };
+}
+function ensureCamKey(t) {
+  const sc = scene();
+  sc.camKeys = sc.camKeys || [];
+  const found = sc.camKeys.find(k => Math.abs(k.t - t) < 0.02);
+  if (found) return found;
+  const cur = evalCam(t);
+  const ck = { t: +t.toFixed(2), zoom: cur.zoom, x: Math.round(cur.x), y: Math.round(cur.y), ease: "inout" };
+  sc.camKeys.push(ck); sc.camKeys.sort((a, b) => a.t - b.t);
+  return ck;
 }
 function objSize(o) {
   if (o.type === "char") return { w: 200, h: 350 };
@@ -319,6 +371,10 @@ function ensureDataImage(url) {
 function drawStage() {
   const sc = scene();
   sctx.clearRect(0, 0, 1280, 720);
+  const _cam = evalCam(playT);
+  sctx.fillStyle = "#000"; sctx.fillRect(0, 0, 1280, 720);
+  sctx.save();
+  if (_cam.zoom !== 1 || _cam.x || _cam.y) { sctx.translate(640, 360); sctx.scale(_cam.zoom, _cam.zoom); sctx.translate(-640 - _cam.x, -360 - _cam.y); }
   if (sc.bgAsset) {
     const bimg = ensureImage(sc.bgAsset);
     if (bimg && bimg.complete && bimg.naturalWidth) {
@@ -333,12 +389,15 @@ function drawStage() {
     sctx.fillRect(0, 0, 1280, 720); sctx.restore();
   }
   for (const o of sc.objects) {
+    if (o.hidden) continue;
+    { const _c = clipOf(o, sc); if (playT < _c.start - 0.001 || playT > _c.start + _c.dur + 0.001) continue; }
     const ev = evalAt(o, playT);
-    if (o.pose) {
-      ev.swingLeg = (o.pose.leg || 0) * Math.PI / 180;
-      ev.swingArm = (o.pose.arm || 0) * Math.PI / 180;
-      ev.headTilt = (o.pose.head || 0) * Math.PI / 180;
-      ev.lean = (o.pose.lean || 0) * Math.PI / 180;
+    const _pose = ev.pose || o.pose;
+    if (_pose) {
+      ev.swingLeg = (_pose.leg || 0) * Math.PI / 180;
+      ev.swingArm = (_pose.arm || 0) * Math.PI / 180;
+      ev.headTilt = (_pose.head || 0) * Math.PI / 180;
+      ev.lean = (_pose.lean || 0) * Math.PI / 180;
     }
     if (o.type === "char") drawChar(sctx, o, ev);
     else if (o.type === "prop") {
@@ -394,8 +453,30 @@ function drawStage() {
     }
   }
   drawFX(sctx, sc);
+  if (!exporting) drawMotionPath(sctx, sc);
+  sctx.restore();
   $("#stageEmpty").style.display = sc.objects.length ? "none" : "";
   syncObjTools();
+}
+function drawMotionPath(ctx, sc) {
+  if (!selId) return;
+  const o = sc.objects.find(x => x.id === selId);
+  if (!o || !o.keys || o.keys.length < 2) return;
+  const ks = o.keys;
+  ctx.save();
+  ctx.strokeStyle = "rgba(245,197,24,.85)"; ctx.lineWidth = 2; ctx.setLineDash([7, 6]);
+  ctx.beginPath();
+  if (ks.length === 2) { ctx.moveTo(ks[0].x, ks[0].y); ctx.lineTo(ks[1].x, ks[1].y); }
+  else {
+    ctx.moveTo(ks[0].x, ks[0].y);
+    for (let i = 0; i < ks.length - 1; i++) {
+      const p0 = ks[Math.max(0, i - 1)], p1 = ks[i], p2 = ks[i + 1], p3 = ks[Math.min(ks.length - 1, i + 2)];
+      for (let s = 1; s <= 14; s++) { const k = s / 14; ctx.lineTo(catmullRom(p0.x, p1.x, p2.x, p3.x, k), catmullRom(p0.y, p1.y, p2.y, p3.y, k)); }
+    }
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  for (const k of ks) { ctx.beginPath(); ctx.arc(k.x, k.y, 5, 0, 7); ctx.fillStyle = "#F5C518"; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = "#000"; ctx.stroke(); }
+  ctx.restore();
 }
 /* ---------------- Effects rendering (rain / river / thunder) ---------------- */
 const frand = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -542,20 +623,52 @@ function addSpritePack(kind, name) {
 }
 function stagePos(evt) {
   const r = stageEl.getBoundingClientRect();
-  return { x: (evt.clientX - r.left) / r.width * 1280, y: (evt.clientY - r.top) / r.height * 720 };
+  const vx = (evt.clientX - r.left) / r.width * 1280, vy = (evt.clientY - r.top) / r.height * 720;
+  const cam = evalCam(playT);
+  if (cam.zoom === 1 && !cam.x && !cam.y) return { x: vx, y: vy };
+  return { x: (vx - 640) / cam.zoom + 640 + cam.x, y: (vy - 360) / cam.zoom + 360 + cam.y };
 }
 function hitTest(pt) {
   const objs = scene().objects;
   for (let i = objs.length - 1; i >= 0; i--) {
-    const o = objs[i], ev = evalAt(o, playT), { w, h } = objSize(o);
+    const o = objs[i];
+    if (o.hidden || o.locked) continue;
+    { const _c = clipOf(o); if (playT < _c.start - 0.001 || playT > _c.start + _c.dur + 0.001) continue; }
+    const ev = evalAt(o, playT), { w, h } = objSize(o);
     if (Math.abs(pt.x - ev.x) <= w * ev.scale / 2 + 6 && Math.abs(pt.y - ev.y) <= h * ev.scale / 2 + 6) return o;
   }
   return null;
 }
 let drag = null;
 stageEl.addEventListener("pointerdown", (e) => {
+  if (handMode) {
+    const sx = e.clientX, sy = e.clientY, px = panX, py = panY;
+    stageEl.setPointerCapture(e.pointerId);
+    const mv = (ev) => { panX = px + (ev.clientX - sx); panY = py + (ev.clientY - sy); applyStageZoom(); };
+    const up = () => { stageEl.removeEventListener("pointermove", mv); stageEl.removeEventListener("pointerup", up); };
+    stageEl.addEventListener("pointermove", mv); stageEl.addEventListener("pointerup", up);
+    return;
+  }
+  if (camRowSel) {
+    if (scene().camLocked) { setNote("The camera track is locked — unlock it in the Camera row to frame shots."); return; }
+    const cam0 = evalCam(playT), sx = e.clientX, sy = e.clientY, r0 = stageEl.getBoundingClientRect();
+    stageEl.setPointerCapture(e.pointerId);
+    let camMoved = false;
+    const cmv = (ev) => {
+      const dxv = (ev.clientX - sx) / r0.width * 1280 / cam0.zoom;
+      const dyv = (ev.clientY - sy) / r0.height * 720 / cam0.zoom;
+      const ck = ensureCamKey(playT);
+      ck.x = Math.round(clamp(cam0.x - dxv, -420, 420));
+      ck.y = Math.round(clamp(cam0.y - dyv, -280, 280));
+      camMoved = true; drawStage();
+    };
+    const cup = () => { stageEl.removeEventListener("pointermove", cmv); stageEl.removeEventListener("pointerup", cup); if (camMoved) { pushHistory(); renderTracks(); setNote(`Camera framed at ${playT.toFixed(1)}s — the pan is saved in the camera key here.`); } };
+    stageEl.addEventListener("pointermove", cmv); stageEl.addEventListener("pointerup", cup);
+    return;
+  }
   const pt = stagePos(e), o = hitTest(pt);
   selId = o ? o.id : null;
+  if (o) camRowSel = false;
   if (o) {
     const ev = evalAt(o, playT);
     drag = { id: o.id, dx: pt.x - ev.x, dy: pt.y - ev.y, moved: false };
@@ -584,6 +697,8 @@ stageEl.addEventListener("pointerup", () => {
 /* ---------------- Object ops ---------------- */
 function addObject(o) {
   o.id = nid("ob"); o.keys = o.keys || [];
+  if (o.start == null) o.start = 0;
+  if (o.dur == null) o.dur = scene().duration;
   scene().objects.push(o); selId = o.id;
   pushHistory(); drawStage(); renderTracks();
   return o;
@@ -723,11 +838,134 @@ function globalT() {
   for (let i = 0; i < curScene; i++) g += project.scenes[i].duration;
   return g;
 }
+/* ---------------- Layers / clips (P3) ---------------- */
+const TL_PAD = 12, LABEL_W = 148;
+let tlZoomPct = 40, handMode = false, panX = 0, panY = 0;
+function pxPerSec() { return tlZoomPct * 2.4; }
+function clipOf(o, sc) {
+  sc = sc || scene();
+  const st = Math.max(0, o.start || 0);
+  const d = (o.dur == null ? sc.duration : o.dur);
+  return { start: st, dur: Math.max(0.2, Math.min(d, Math.max(0.2, sc.duration - st))) };
+}
+function positionClip(el, st, d) { el.style.left = (st * pxPerSec()) + "px"; el.style.width = Math.max(16, d * pxPerSec()) + "px"; }
+function seekFromClientX(clientX) {
+  const sc = scene(); const rect = $("#tlInner").getBoundingClientRect();
+  playT = clamp((clientX - rect.left - TL_PAD - LABEL_W) / pxPerSec(), 0, sc.duration);
+  drawStage(); drawPlayhead();
+}
+function renderRuler() {
+  const sc = scene(), r = $("#tlRuler"); if (!r) return;
+  const pps = pxPerSec();
+  const steps = [1, 2, 5, 10, 15, 30, 60];
+  const step = steps.find(x => x * pps >= 70) || 60;
+  let html = "";
+  for (let t = 0; t <= sc.duration + 0.001; t += step) html += `<span class="tl-tick" style="left:${TL_PAD + LABEL_W + t * pps}px">${fmt(t)}</span>`;
+  r.innerHTML = html;
+  const w = TL_PAD + LABEL_W + sc.duration * pps + 30;
+  const sw = ($("#tlScroll") || {}).clientWidth || 0;
+  $("#tlInner").style.width = Math.max(sw, w) + "px";
+}
+function clipDrag(el, opts) {
+  el.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".kf") || e.target.closest(".tctl")) return;
+    e.preventDefault(); e.stopPropagation();
+    if (opts.onSelect) opts.onSelect();
+    const rect = el.getBoundingClientRect();
+    let mode = "move";
+    if (e.clientX - rect.left < 9) mode = "l";
+    else if (rect.right - e.clientX < 9) mode = "r";
+    const sc = scene(); const pps = pxPerSec();
+    const c0 = opts.get(); const start0 = c0.start, dur0 = c0.dur;
+    const x0 = e.clientX; let changed = false;
+    el.setPointerCapture(e.pointerId);
+    const mv = (ev) => {
+      const dt = (ev.clientX - x0) / pps;
+      let st = start0, d = dur0;
+      if (mode === "move") st = clamp(start0 + dt, 0, Math.max(0, sc.duration - dur0));
+      else if (mode === "l") { st = clamp(start0 + dt, 0, start0 + dur0 - 0.2); d = dur0 + (start0 - st); }
+      else d = clamp(dur0 + dt, 0.2, sc.duration - start0);
+      st = Math.round(st * 10) / 10; d = Math.round(d * 10) / 10;
+      const cur = opts.get();
+      if (st !== cur.start || d !== cur.dur) { opts.set(st, d); changed = true; positionClip(el, st, d); if (opts.onDrag) opts.onDrag(); drawStage(); }
+    };
+    const up = () => {
+      el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up);
+      if (changed) { pushHistory(); renderTracks(); }
+    };
+    el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up);
+  });
+}
+function renderClipKeys(clip, o, sc) {
+  clip.querySelectorAll(".kf").forEach(k => k.remove());
+  const cl = clipOf(o, sc); const pps = pxPerSec();
+  for (const k of o.keys || []) {
+    if (k.t < cl.start - 0.001 || k.t > cl.start + cl.dur + 0.001) continue;
+    const d = document.createElement("button");
+    d.className = "kf"; d.type = "button"; d.title = `Keyframe at ${k.t.toFixed(1)}s`;
+    d.style.left = ((k.t - cl.start) * pps) + "px";
+    d.addEventListener("click", (ev) => { ev.stopPropagation(); selId = o.id; camRowSel = false; selKey = { kind: "obj", id: o.id, t: k.t }; playT = k.t; drawStage(); drawPlayhead(); renderTracks(); });
+    clip.appendChild(d);
+  }
+}
+let layerMenuEl = null;
+function closeLayerMenu() { if (layerMenuEl) { layerMenuEl.remove(); layerMenuEl = null; } }
+function openLayerMenu(o, anchor) {
+  closeLayerMenu();
+  const m = document.createElement("div");
+  m.className = "layer-menu";
+  m.innerHTML = `<button type="button" data-a="dup">⎘ Duplicate Layer</button><button type="button" data-a="split">✂ Split at Playhead</button><button type="button" data-a="del">🗑 Delete Layer</button>`;
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - 200)) + "px";
+  m.style.top = (r.bottom + 4) + "px";
+  layerMenuEl = m;
+  m.addEventListener("click", (e) => {
+    const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+    closeLayerMenu();
+    if (a === "dup") duplicateLayer(o);
+    else if (a === "split") splitLayer(o);
+    else if (a === "del") deleteLayer(o);
+  });
+  setTimeout(() => {
+    document.addEventListener("pointerdown", function h(ev) {
+      if (!layerMenuEl) { document.removeEventListener("pointerdown", h); return; }
+      if (!layerMenuEl.contains(ev.target)) { closeLayerMenu(); document.removeEventListener("pointerdown", h); }
+    });
+  }, 0);
+}
+function duplicateLayer(o) {
+  const sc = scene();
+  const b = JSON.parse(JSON.stringify(o));
+  b.id = nid("ob"); b.name = o.name + " copy";
+  sc.objects.splice(sc.objects.indexOf(o) + 1, 0, b);
+  selId = b.id;
+  pushHistory(); renderTracks(); drawStage();
+  setNote(`Layer "${b.name}" added.`);
+}
+function splitLayer(o) {
+  const sc = scene(); const cl = clipOf(o, sc);
+  if (playT <= cl.start + 0.05 || playT >= cl.start + cl.dur - 0.05) { setNote("Move the playhead inside the clip to split it."); return; }
+  const b = JSON.parse(JSON.stringify(o));
+  b.id = nid("ob");
+  o.start = cl.start; o.dur = Math.round((playT - cl.start) * 10) / 10;
+  b.start = Math.round(playT * 10) / 10; b.dur = Math.round((cl.start + cl.dur - playT) * 10) / 10;
+  sc.objects.splice(sc.objects.indexOf(o) + 1, 0, b);
+  pushHistory(); renderTracks(); drawStage();
+  setNote(`"${o.name}" split at ${playT.toFixed(1)}s.`);
+}
+function deleteLayer(o) {
+  const sc = scene();
+  sc.objects = sc.objects.filter(x => x.id !== o.id);
+  if (selId === o.id) selId = null;
+  pushHistory(); renderTracks(); drawStage();
+  setNote(`Layer "${o.name}" deleted.`);
+}
 function drawPlayhead() {
-  const sc = scene(), tracks = $("#timelineTracks");
-  const x = 80 + (playT / sc.duration) * Math.max(60, tracks.clientWidth - 100);
-  $("#playhead").style.left = x + "px";
+  const x = TL_PAD + LABEL_W + playT * pxPerSec();
+  const ph = $("#playhead"); if (ph) ph.style.left = x + "px";
   $("#timeDisplay").textContent = `${fmt(globalT())} / ${fmt(totalDur())}`;
+  syncIkUI(); if (!playing) renderKeyBar();
 }
 function renderScenes() {
   const strip = $("#sceneStrip");
@@ -757,60 +995,248 @@ function renderScenes() {
     strip.insertBefore(cell, $("#addSceneBtn"));
   });
 }
+function renderCamRow(wrap, sc) {
+  const row = document.createElement("div");
+  row.className = "track-row cam-row" + (camRowSel ? " sel" : "");
+  const cluster = document.createElement("div");
+  cluster.className = "tcluster";
+  const nm = document.createElement("span");
+  nm.className = "track-name"; nm.title = "Camera track"; nm.textContent = "📷 Camera";
+  nm.addEventListener("click", () => { camRowSel = true; selId = null; renderTracks(); drawStage(); setNote("Camera track selected — drag on the stage to pan, press Camera for a zoom key, ◆ Keyframe adds a camera key at the playhead."); });
+  cluster.appendChild(nm);
+  const lockB = document.createElement("button");
+  lockB.className = "tctl"; lockB.type = "button";
+  lockB.textContent = sc.camLocked ? "🔒" : "🔓";
+  lockB.title = sc.camLocked ? "Unlock camera track" : "Lock camera track";
+  lockB.addEventListener("click", () => { sc.camLocked = !sc.camLocked; pushHistory(); renderTracks(); setNote(sc.camLocked ? "Camera track locked." : "Camera track unlocked."); });
+  cluster.appendChild(lockB);
+  row.appendChild(cluster);
+  const lane = document.createElement("div");
+  lane.className = "track-lane";
+  lane.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".kf")) return;
+    const r = lane.getBoundingClientRect();
+    playT = clamp((e.clientX - r.left) / pxPerSec(), 0, scene().duration);
+    camRowSel = true; selId = null;
+    drawStage(); drawPlayhead(); renderTracks();
+  });
+  const bar = document.createElement("div");
+  bar.className = "clip clip-cam";
+  positionClip(bar, 0, sc.duration);
+  bar.innerHTML = `<span class="clip-name">Camera — zoom &amp; pan over time</span>`;
+  for (const ck of sc.camKeys || []) {
+    const d = document.createElement("button");
+    d.className = "kf cam"; d.type = "button";
+    d.title = `Camera key at ${ck.t.toFixed(1)}s — ${Math.round(ck.zoom * 100)}%`;
+    d.style.left = (ck.t * pxPerSec()) + "px";
+    d.addEventListener("click", (ev) => { ev.stopPropagation(); camRowSel = true; selId = null; selKey = { kind: "cam", t: ck.t }; playT = ck.t; drawStage(); drawPlayhead(); renderTracks(); });
+    bar.appendChild(d);
+  }
+  lane.appendChild(bar);
+  row.appendChild(lane);
+  wrap.appendChild(row);
+}
+function easeChips(cur) {
+  return [["linear", "Linear"], ["in", "Ease In"], ["out", "Ease Out"], ["inout", "In-Out"]].map(([v, l]) => `<button class="chip${(cur || "linear") === v ? " active" : ""}" type="button" data-ease="${v}">${l}</button>`).join("");
+}
+function selKeyTarget() {
+  const sc = scene();
+  if (!selKey) return null;
+  if (selKey.kind === "cam") { const ck = (sc.camKeys || []).find(k => Math.abs(k.t - selKey.t) < 0.02); return ck ? { rec: ck, label: `📷 Camera key @ ${ck.t.toFixed(1)}s` } : null; }
+  const o = sc.objects.find(x => x.id === selKey.id);
+  const k = o && (o.keys || []).find(k => Math.abs(k.t - selKey.t) < 0.02);
+  return k ? { rec: k, label: `◆ Key @ ${k.t.toFixed(1)}s · ${o.name}` } : null;
+}
+function renderKeyBar() {
+  const bar = $("#keyBar"); if (!bar) return;
+  const tgt = selKeyTarget();
+  if (!tgt) { if (selKey) selKey = null; bar.hidden = true; bar.innerHTML = ""; return; }
+  let html = `<span class="kb-label">${tgt.label} · Ease after this key</span>${easeChips(tgt.rec.ease)}`;
+  if (selKey.kind === "cam") html += `<span class="kb-label">Zoom</span><input type="range" id="kbZoom" min="50" max="250" value="${Math.round(tgt.rec.zoom * 100)}"><span class="kb-val" id="kbZoomVal">${Math.round(tgt.rec.zoom * 100)}%</span>`;
+  html += `<button class="tl-btn" id="kbDel" type="button">Delete Key</button>`;
+  bar.hidden = false; bar.innerHTML = html;
+  bar.querySelectorAll("[data-ease]").forEach(b => b.addEventListener("click", () => {
+    tgt.rec.ease = b.dataset.ease; pushHistory(); renderKeyBar(); drawStage();
+    setNote(`Easing set to ${b.textContent} — it shapes the movement after this key.`);
+  }));
+  const del = $("#kbDel");
+  if (del) del.addEventListener("click", () => {
+    const sc = scene();
+    if (selKey.kind === "cam") sc.camKeys = (sc.camKeys || []).filter(k => Math.abs(k.t - selKey.t) >= 0.02);
+    else { const o = sc.objects.find(x => x.id === selKey.id); if (o) o.keys = (o.keys || []).filter(k => Math.abs(k.t - selKey.t) >= 0.02); }
+    selKey = null; pushHistory(); renderTracks(); drawStage(); setNote("Keyframe deleted.");
+  });
+  const z = $("#kbZoom");
+  if (z) {
+    z.addEventListener("input", () => { tgt.rec.zoom = +z.value / 100; const v = $("#kbZoomVal"); if (v) v.textContent = z.value + "%"; drawStage(); });
+    z.addEventListener("change", () => { pushHistory(); renderTracks(); });
+  }
+}
+function syncIkUI() {
+  const a = $("#ikArm"); if (!a) return;
+  const o = selObj(); if (!o || o.type !== "char") return;
+  const ev = evalAt(o, playT);
+  const P = ev.pose || o.pose; if (!P) return;
+  a.value = Math.round(P.arm || 0);
+  const l = $("#ikLeg"); if (l) l.value = Math.round(P.leg || 0);
+  const h = $("#ikHead"); if (h) h.value = Math.round(P.head || 0);
+  const ln = $("#ikLean"); if (ln) ln.value = Math.round(P.lean || 0);
+}
+/* ---------------- Audio waveforms (real peaks from the clip's own audio) ---------------- */
+const peaksCache = {};
+let waveCtx = null;
+async function computePeaks(blob, n) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC || !blob) return null;
+    waveCtx = waveCtx || new AC();
+    const buf = await waveCtx.decodeAudioData(await blob.arrayBuffer());
+    const ch = buf.getChannelData(0), out = [], step = Math.max(1, Math.floor(ch.length / n)), sub = Math.max(1, Math.floor(step / 24));
+    for (let i = 0; i < n; i++) { let m = 0; for (let j = 0; j < step; j += sub) { const v = Math.abs(ch[i * step + j] || 0); if (v > m) m = v; } out.push(+m.toFixed(3)); }
+    return out;
+  } catch { return null; }
+}
+function drawWave(cv, peaks) {
+  const g = cv.getContext("2d"); if (!g) return;
+  const W = cv.width, H = cv.height, n = peaks.length;
+  g.clearRect(0, 0, W, H); g.fillStyle = "rgba(255,255,255,.85)";
+  for (let i = 0; i < n; i++) { const h = Math.max(1, peaks[i] * (H - 3)); g.fillRect((i * W) / n, (H - h) / 2, Math.max(1, W / n - 0.6), h); }
+}
+async function attachWave(el, cacheKey, getBlob) {
+  try {
+    let peaks = peaksCache[cacheKey];
+    if (!peaks) { const blob = await getBlob(); if (!blob) return; peaks = await computePeaks(blob, 72); if (!peaks) return; peaksCache[cacheKey] = peaks; }
+    if (!el.isConnected) return;
+    const cv = document.createElement("canvas");
+    cv.className = "wave";
+    cv.width = Math.max(24, el.clientWidth || 120); cv.height = 24;
+    el.insertBefore(cv, el.firstChild);
+    drawWave(cv, peaks);
+  } catch { /* the waveform is a visual aid; the clip itself still works */ }
+}
 function renderTracks() {
-  const wrap = $("#trackRows");
+  const wrap = $("#trackRows"); if (!wrap) return;
   wrap.innerHTML = "";
   const sc = scene();
-  if (!sc.objects.length) {
-    const nr = document.createElement("div");
-    nr.className = "track-row no-layers";
-    nr.innerHTML = `<span class="track-name" style="opacity:.55">No layers</span><div class="track-lane"><span style="position:absolute;left:8px;top:3px;font-size:12px;opacity:.55">No layers in timeline. Select characters or media to add layers.</span></div>`;
-    wrap.appendChild(nr);
+  renderRuler();
+  const pps = pxPerSec();
+  renderCamRow(wrap, sc);
+  if (!sc.objects.length && !(sc.audio || []).length && !sc.voiceAssetId) {
+    const e = document.createElement("div");
+    e.className = "tl-empty";
+    e.innerHTML = `<div class="tl-empty-ic">▦</div><div class="tl-empty-title">No layers</div><div class="tl-empty-sub">No layers in timeline. Select characters or media to add layers.</div>`;
+    wrap.appendChild(e);
   }
   for (const o of sc.objects) {
+    const cl = clipOf(o, sc);
     const row = document.createElement("div");
-    row.className = "track-row";
-    row.innerHTML = `<span class="track-name" title="${o.name}">${o.name}</span>`;
+    row.className = "track-row" + (o.id === selId ? " sel" : "");
+    const cluster = document.createElement("div");
+    cluster.className = "tcluster";
+    const nm = document.createElement("span");
+    nm.className = "track-name"; nm.title = o.name; nm.textContent = o.name;
+    nm.addEventListener("click", () => { selId = o.id; camRowSel = false; selKey = null; renderTracks(); drawStage(); });
+    cluster.appendChild(nm);
+    const lockB = document.createElement("button");
+    lockB.className = "tctl"; lockB.type = "button";
+    lockB.textContent = o.locked ? "🔒" : "🔓";
+    lockB.title = o.locked ? "Unlock layer" : "Lock layer";
+    lockB.addEventListener("click", () => { o.locked = !o.locked; pushHistory(); renderTracks(); drawStage(); setNote(`"${o.name}" ${o.locked ? "locked" : "unlocked"}.`); });
+    cluster.appendChild(lockB);
+    const eyeB = document.createElement("button");
+    eyeB.className = "tctl"; eyeB.type = "button";
+    eyeB.textContent = o.hidden ? "🚫" : "👁";
+    eyeB.title = o.hidden ? "Show layer" : "Hide layer";
+    eyeB.addEventListener("click", () => { o.hidden = !o.hidden; pushHistory(); renderTracks(); drawStage(); setNote(`"${o.name}" ${o.hidden ? "hidden" : "shown"}.`); });
+    cluster.appendChild(eyeB);
+    const moreB = document.createElement("button");
+    moreB.className = "tctl"; moreB.type = "button"; moreB.textContent = "⋯";
+    moreB.title = "Layer options";
+    moreB.addEventListener("click", (ev) => { ev.stopPropagation(); selId = o.id; openLayerMenu(o, moreB); });
+    cluster.appendChild(moreB);
+    row.appendChild(cluster);
     const lane = document.createElement("div");
     lane.className = "track-lane";
-    lane.addEventListener("click", (e) => {
-      if (e.target.classList.contains("kf")) return;
+    lane.addEventListener("pointerdown", (e) => {
+      if (e.target !== lane) return;
       const r = lane.getBoundingClientRect();
-      playT = clamp((e.clientX - r.left) / r.width, 0, 1) * sc.duration;
+      playT = clamp((e.clientX - r.left) / pps, 0, sc.duration);
       drawStage(); drawPlayhead();
     });
-    for (const k of o.keys || []) {
-      const d = document.createElement("button");
-      d.className = "kf"; d.type = "button"; d.title = `Keyframe at ${k.t.toFixed(1)}s`;
-      d.style.left = (k.t / sc.duration * 100) + "%";
-      d.addEventListener("click", () => { selId = o.id; playT = k.t; drawStage(); drawPlayhead(); renderTracks(); });
-      lane.appendChild(d);
-    }
+    const clip = document.createElement("div");
+    clip.className = "clip clip-" + o.type + (o.locked ? " locked" : "");
+    positionClip(clip, cl.start, cl.dur);
+    clip.innerHTML = `<span class="clip-name">${o.name}</span><i class="trim trim-l"></i><i class="trim trim-r"></i>`;
+    renderClipKeys(clip, o, sc);
+    if (!o.locked) clipDrag(clip, {
+      get: () => clipOf(o, sc),
+      set: (st, d) => { o.start = st; o.dur = d; },
+      onDrag: () => renderClipKeys(clip, o, sc),
+      onSelect: () => { if (selId !== o.id) { selId = o.id; } }
+    });
+    lane.appendChild(clip);
     row.appendChild(lane);
     wrap.appendChild(row);
   }
   const vrow = document.createElement("div");
   vrow.className = "track-row";
-  vrow.innerHTML = `<span class="track-name">Voice</span>${sc.voiceAssetId ? `<button class="track-x" type="button" title="Remove voice clip">✕</button>` : ""}`;
-  const dvBtn = vrow.querySelector(".track-x");
-  if (dvBtn) dvBtn.addEventListener("click", () => { scene().voiceAssetId = null; pushHistory(); renderTracks(); setNote("Voice clip removed from this scene."); });
+  const vcluster = document.createElement("div");
+  vcluster.className = "tcluster";
+  vcluster.innerHTML = `<span class="track-name">Voice</span>`;
+  if (sc.voiceAssetId) {
+    const dv = document.createElement("button");
+    dv.className = "tctl"; dv.type = "button"; dv.textContent = "✕"; dv.title = "Remove voice clip";
+    dv.addEventListener("click", () => { scene().voiceAssetId = null; pushHistory(); renderTracks(); setNote("Voice clip removed from this scene."); });
+    vcluster.appendChild(dv);
+  }
+  vrow.appendChild(vcluster);
   const vlane = document.createElement("div");
   vlane.className = "track-lane";
-  if (sc.voiceAssetId) vlane.innerHTML = `<span style="position:absolute;left:8px;top:3px;font-size:12px;color:var(--accent)">🔊 Voice clip — plays with this scene</span>`;
+  vlane.addEventListener("pointerdown", (e) => {
+    if (e.target !== vlane) return;
+    const r = vlane.getBoundingClientRect();
+    playT = clamp((e.clientX - r.left) / pps, 0, sc.duration);
+    drawStage(); drawPlayhead();
+  });
+  if (sc.voiceAssetId) {
+    const vc = document.createElement("div");
+    vc.className = "clip clip-voice";
+    positionClip(vc, 0, sc.duration);
+    vc.innerHTML = `<span class="clip-name">🔊 Voice clip — plays with this scene</span>`;
+    vlane.appendChild(vc);
+    attachWave(vc, "voice-" + sc.voiceAssetId, async () => { if (memBlobs[sc.voiceAssetId]) return memBlobs[sc.voiceAssetId]; try { const rec = await idbGet("assets", sc.voiceAssetId); return rec && rec.blob ? rec.blob : null; } catch { return null; } });
+  }
   vrow.appendChild(vlane);
   wrap.appendChild(vrow);
   for (const clip of sc.audio || []) {
     const row = document.createElement("div");
     row.className = "track-row";
-    row.innerHTML = `<span class="track-name">🔊 ${clip.name}</span><button class="track-x" type="button" title="Remove audio clip">✕</button>`;
-    row.querySelector(".track-x").addEventListener("click", () => { const s2 = scene(); s2.audio = (s2.audio || []).filter(c => c.id !== clip.id); stopClipAudio(clip.id); pushHistory(); renderTracks(); setNote(`"${clip.name}" removed from the timeline.`); });
+    const cluster = document.createElement("div");
+    cluster.className = "tcluster";
+    const nm = document.createElement("span");
+    nm.className = "track-name"; nm.title = clip.name; nm.textContent = "🔊 " + clip.name;
+    cluster.appendChild(nm);
+    const x = document.createElement("button");
+    x.className = "tctl"; x.type = "button"; x.textContent = "✕"; x.title = "Remove audio clip";
+    x.addEventListener("click", () => { const s2 = scene(); s2.audio = (s2.audio || []).filter(c => c.id !== clip.id); stopClipAudio(clip.id); pushHistory(); renderTracks(); setNote(`"${clip.name}" removed from the timeline.`); });
+    cluster.appendChild(x);
+    row.appendChild(cluster);
     const lane = document.createElement("div");
     lane.className = "track-lane";
+    lane.addEventListener("pointerdown", (e) => {
+      if (e.target !== lane) return;
+      const r = lane.getBoundingClientRect();
+      playT = clamp((e.clientX - r.left) / pps, 0, sc.duration);
+      drawStage(); drawPlayhead();
+    });
     const blk = document.createElement("div");
     blk.className = "audio-clip";
-    blk.style.left = (clip.start / sc.duration * 100) + "%";
-    blk.style.width = Math.max(6, clip.dur / sc.duration * 100) + "%";
+    positionClip(blk, clip.start || 0, clip.dur || 1);
     blk.textContent = clip.name;
+    clipDrag(blk, {
+      get: () => ({ start: clip.start || 0, dur: clip.dur || 1 }),
+      set: (st, d) => { clip.start = st; clip.dur = d; }
+    });
+    attachWave(blk, clip.assetId, async () => { const tid = (clip.assetId || "").replace(/^trk-/, ""); return tid ? await trackBlob(tid) : null; });
     lane.appendChild(blk);
     row.appendChild(lane);
     wrap.appendChild(row);
@@ -894,6 +1320,13 @@ $("#splitSceneBtn").addEventListener("click", () => {
     return c;
   });
   sc.objects.forEach(o => { o.keys = (o.keys || []).filter(k => k.t <= playT); });
+  if ((sc.camKeys || []).length) {
+    const atSplit = evalCam(playT);
+    second.camKeys = [{ t: 0, zoom: atSplit.zoom, x: Math.round(atSplit.x), y: Math.round(atSplit.y), ease: "inout" }].concat(sc.camKeys.filter(k => k.t > playT).map(k => ({ ...k, t: +(k.t - playT).toFixed(2) })));
+    sc.camKeys = sc.camKeys.filter(k => k.t <= playT);
+    if (!sc.camKeys.some(k => Math.abs(k.t - playT) < 0.02)) sc.camKeys.push({ t: +playT.toFixed(2), zoom: atSplit.zoom, x: Math.round(atSplit.x), y: Math.round(atSplit.y), ease: "inout" });
+    sc.camKeys.sort((a, b) => a.t - b.t);
+  }
   sc.duration = +playT.toFixed(2);
   project.scenes.splice(curScene + 1, 0, second);
   pushHistory(); renderScenes(); renderTracks(); drawStage();
@@ -901,30 +1334,52 @@ $("#splitSceneBtn").addEventListener("click", () => {
 });
 /* keyframes */
 $("#keyBtn").addEventListener("click", () => {
+  if (camRowSel) {
+    if (scene().camLocked) { setNote("The camera track is locked — unlock it in the Camera row first."); return; }
+    const ck = ensureCamKey(playT);
+    selKey = { kind: "cam", t: ck.t };
+    pushHistory(); renderTracks(); drawStage();
+    setNote(`Camera key at ${playT.toFixed(1)}s — zoom ${Math.round(ck.zoom * 100)}%. Drag the stage to pan, press Camera to change the zoom, add keys at other times to glide between framings.`);
+    return;
+  }
   const o = selObj();
   if (!o) { setNote("Select an object on the canvas first, then add a keyframe."); return; }
   const cur = { t: +playT.toFixed(2), x: o.x, y: o.y, scale: o.scale, rot: o.rot, op: o.op };
   // bake current visual state if keys already exist and playhead sits between them
   const ev = evalAt(o, playT);
   Object.assign(cur, { x: ev.x, y: ev.y, scale: ev.scale, rot: ev.rot, op: ev.op });
+  const _p = ev.pose || (o.pose ? { ...o.pose } : { arm: 0, leg: 0, head: 0, lean: 0 });
+  cur.pose = { arm: _p.arm || 0, leg: _p.leg || 0, head: _p.head || 0, lean: _p.lean || 0 };
+  cur.ease = "inout";
   o.keys = (o.keys || []).filter(k => Math.abs(k.t - playT) > 0.02);
   o.keys.push(cur); o.keys.sort((a, b) => a.t - b.t);
+  selKey = { kind: "obj", id: o.id, t: cur.t };
   pushHistory(); renderTracks();
-  setNote(`Keyframe added for ${o.name} at ${playT.toFixed(1)}s. Move the playhead, move the object, add another — it will glide between them.`);
+  setNote(`Keyframe added for ${o.name} at ${playT.toFixed(1)}s — position, size and pose are saved in the key. Move the playhead, move or pose it, add another — it will glide between them.`);
 });
 $("#keyDelBtn").addEventListener("click", () => {
+  if (camRowSel) {
+    const sc = scene(); const before = (sc.camKeys || []).length;
+    sc.camKeys = (sc.camKeys || []).filter(k => Math.abs(k.t - playT) > 0.02);
+    if (sc.camKeys.length !== before) { selKey = null; pushHistory(); renderTracks(); drawStage(); setNote("Camera key deleted."); }
+    else setNote("No camera key at the playhead.");
+    return;
+  }
   const o = selObj(); if (!o) return;
   const before = (o.keys || []).length;
   o.keys = o.keys.filter(k => Math.abs(k.t - playT) > 0.02);
   if (o.keys.length !== before) { pushHistory(); renderTracks(); setNote("Keyframe deleted."); }
   else setNote("No keyframe at the playhead for the selected object.");
 });
-/* camera framing + zooms */
-let camZoom = 1;
+/* camera track keys (P3) — the Camera button sets a zoom key at the playhead */
 $("#cameraBtn").addEventListener("click", () => {
-  camZoom = camZoom >= 1.5 ? 1 : camZoom + 0.25;
-  applyStageZoom();
-  setNote(`Camera framing ${Math.round(camZoom * 100)}% — a closer shot for this scene.`);
+  if (scene().camLocked) { setNote("The camera track is locked — unlock it in the Camera row first."); return; }
+  camRowSel = true; selId = null;
+  const ck = ensureCamKey(playT);
+  ck.zoom = ck.zoom >= 1.49 ? 1 : +(ck.zoom + 0.25).toFixed(2);
+  selKey = { kind: "cam", t: ck.t };
+  pushHistory(); renderTracks(); drawStage();
+  setNote(`Camera key at ${playT.toFixed(1)}s — framing ${Math.round(ck.zoom * 100)}%. Drag the stage to pan; add keys at other times and the camera glides between them — in playback and in the export.`);
 });
 let sliderZoom = 1;
 function applyStageZoom() {
@@ -935,24 +1390,32 @@ function applyStageZoom() {
     tx = Math.sin(t * 0.11) * sh * 0.35;
     ty = Math.cos(t * 0.13) * sh * 0.28;
   }
-  $("#stageCanvas").style.transform = `translate(${tx}px, ${ty}px) scale(${camZoom * sliderZoom})`;
+  $("#stageCanvas").style.transform = `translate(${tx + panX}px, ${ty + panY}px) scale(${sliderZoom})`;
 }
-$("#canvasZoom").addEventListener("input", (e) => { sliderZoom = e.target.value / 100; applyStageZoom(); });
-$("#stageFsBtn").addEventListener("click", () => {
-  const vp = $("#stageViewport");
-  if (document.fullscreenElement) document.exitFullscreen();
-  else if (vp.requestFullscreen) vp.requestFullscreen();
-});
-$("#timelineZoom").addEventListener("input", (e) => {
-  const z = 0.4 + e.target.value / 100;
-  $$(".track-lane").forEach(l => { l.style.transform = `scaleX(${z})`; l.style.transformOrigin = "left center"; });
-});
-$("#layersBtn").addEventListener("click", () => {
-  const rows = $$("#trackRows .track-row");
-  const hidden = rows.length && rows[0].style.display === "none";
-  rows.forEach(r => r.style.display = hidden ? "" : "none");
-  $("#layersBtn").textContent = hidden ? "Layers ▾" : "Layers ▸";
-});
+$("#stageZoomOut").addEventListener("click", () => { sliderZoom = clamp(Math.round((sliderZoom - 0.1) * 10) / 10, 0.5, 1.5); applyStageZoom(); setNote(`Stage zoom ${Math.round(sliderZoom * 100)}%.`); });
+$("#stageZoomIn").addEventListener("click", () => { sliderZoom = clamp(Math.round((sliderZoom + 0.1) * 10) / 10, 0.5, 1.5); applyStageZoom(); setNote(`Stage zoom ${Math.round(sliderZoom * 100)}%.`); });
+$("#tlZoomOut").addEventListener("click", () => { tlZoomPct = clamp(tlZoomPct - 10, 10, 100); $("#tlZoomVal").textContent = tlZoomPct + "%"; renderTracks(); });
+$("#tlZoomIn").addEventListener("click", () => { tlZoomPct = clamp(tlZoomPct + 10, 10, 100); $("#tlZoomVal").textContent = tlZoomPct + "%"; renderTracks(); });
+$("#handBtn").addEventListener("click", () => { handMode = !handMode; $("#handBtn").classList.toggle("active", handMode); setNote(handMode ? "Hand tool on — drag the stage to pan the view." : "Hand tool off."); });
+$("#tlCollapseBtn").addEventListener("click", () => { const c = $("#timelineRoot").classList.toggle("tl-collapsed"); $("#tlCollapseBtn").textContent = c ? "⌄" : "⌃"; });
+$("#dockBtn").addEventListener("click", () => { const t = $("#timelineTracks"); const hid = t.style.display === "none"; t.style.display = hid ? "" : "none"; setNote(hid ? "Layers shown." : "Layers hidden."); });
+$("#lockAllBtn").addEventListener("click", () => { const sc = scene(); const any = sc.objects.some(o => o.locked); sc.objects.forEach(o => { o.locked = !any; }); $("#lockAllBtn").textContent = !any ? "🔒" : "🔓"; pushHistory(); renderTracks(); drawStage(); setNote(!any ? "All layers locked." : "All layers unlocked."); });
+$("#delLayerBtn").addEventListener("click", () => { const o = scene().objects.find(x => x.id === selId); if (o) deleteLayer(o); else setNote("Select a layer first, then delete it."); });
+(function wireSeek() {
+  const wire = (el) => {
+    if (!el) return;
+    el.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      seekFromClientX(e.clientX);
+      el.setPointerCapture(e.pointerId);
+      const mv = (ev) => seekFromClientX(ev.clientX);
+      const up = () => { el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); };
+      el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up);
+    });
+  };
+  wire($("#tlRuler"));
+  wire(document.querySelector("#playhead .ph-handle"));
+})();
 window.addEventListener("resize", drawPlayhead);
 
 /* ---------------- Save / load (IndexedDB) ---------------- */
@@ -1528,6 +1991,8 @@ function wireIk() {
       if (!o || o.type !== "char") { setNote("Select a character on the canvas first — IK poses characters."); return; }
       o.pose = o.pose || { arm: 0, leg: 0, head: 0, lean: 0 };
       o.pose[key] = +el.value;
+      const _kk = (o.keys || []).find(k => Math.abs(k.t - playT) < 0.02);
+      if (_kk) { _kk.pose = _kk.pose || { arm: o.pose.arm || 0, leg: o.pose.leg || 0, head: o.pose.head || 0, lean: o.pose.lean || 0 }; _kk.pose[key] = +el.value; }
       drawStage();
     };
     el.addEventListener("input", apply);
@@ -1545,6 +2010,8 @@ function wireIk() {
     const o = selObj();
     if (!o || o.type !== "char") { setNote("Select a character on the canvas first."); return; }
     o.pose = { arm: 0, leg: 0, head: 0, lean: 0 };
+    const _rk = (o.keys || []).find(k => Math.abs(k.t - playT) < 0.02);
+    if (_rk) _rk.pose = { arm: 0, leg: 0, head: 0, lean: 0 };
     pushHistory(); drawStage(); selectTool("ik");
     setNote(`${o.name} is standing straight again.`);
   });
