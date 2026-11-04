@@ -1075,12 +1075,13 @@ const PANELS = {
     const fx = scene().fx || {};
     const rv = fx.river || { flow: 50, width: 60, angle: 50, color1: "#57b7d9", color2: "#2e6da0" };
     const rn = fx.rain || { intensity: 55, speed: 50, wind: 20, opacity: 80, splash: true };
+    const rvt = (fx.river && fx.river.type) || fx.riverType || "river";
     return `<h4>Effect</h4>
     <p class="panel-sub"><strong>Natural River &amp; Rain Studio</strong> — effects play live on your canvas, in this scene.</p>
     <button class="btn ${fx.river ? "btn-panel" : "btn-accent"} panel-btn" id="fxRiverBtn" type="button">${fx.river ? "Remove River" : "Generate River"}</button>
     <label class="slider-row">River type
       <select id="rvType" class="fx-select">
-        <option value="stream">Stream</option><option value="river" selected>River</option><option value="rapids">Rapids</option>
+        <option value="stream"${rvt === "stream" ? " selected" : ""}>Stream</option><option value="river"${rvt === "river" ? " selected" : ""}>River</option><option value="rapids"${rvt === "rapids" ? " selected" : ""}>Rapids</option>
       </select></label>
     <label class="slider-row">Flow speed <input type="range" id="rvFlow" min="0" max="100" value="${rv.flow}"></label>
     <label class="slider-row">Width <input type="range" id="rvWidth" min="0" max="100" value="${rv.width}"></label>
@@ -1540,13 +1541,16 @@ function wireFx() {
   const upd = (hist) => { drawStage(); ensureFxLoop(); if (hist) pushHistory(); };
   $("#fxRiverBtn").addEventListener("click", () => {
     const fx = fxGet();
-    fx.river = fx.river ? null : { flow: +$("#rvFlow").value, width: +$("#rvWidth").value, angle: +$("#rvAngle").value, color1: $("#rvColor1").value, color2: $("#rvColor2").value };
+    if (fx.river) { fx.river = null; fx.shake = 0; }
+    else fx.river = { type: $("#rvType").value, flow: +$("#rvFlow").value, width: +$("#rvWidth").value, angle: +$("#rvAngle").value, color1: $("#rvColor1").value, color2: $("#rvColor2").value };
     pushHistory(); selectTool("effect"); upd(false);
     setNote(fx.river ? "River is flowing in this scene." : "River removed.");
   });
   const rvUpd = () => {
-    const fx = fxGet(); if (!fx.river) return;
-    fx.river = { flow: +$("#rvFlow").value, width: +$("#rvWidth").value, angle: +$("#rvAngle").value, color1: $("#rvColor1").value, color2: $("#rvColor2").value };
+    const fx = fxGet();
+    fx.riverType = $("#rvType").value;
+    if (!fx.river) return;
+    fx.river = { type: fx.riverType, flow: +$("#rvFlow").value, width: +$("#rvWidth").value, angle: +$("#rvAngle").value, color1: $("#rvColor1").value, color2: $("#rvColor2").value };
     upd(false);
   };
   ["rvFlow", "rvWidth", "rvAngle", "rvColor1", "rvColor2", "rvType"].forEach(id => {
