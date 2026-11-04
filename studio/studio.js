@@ -333,6 +333,8 @@ function drawStage() {
     sctx.fillRect(0, 0, 1280, 720); sctx.restore();
   }
   for (const o of sc.objects) {
+    if (o.hidden) continue;
+    { const _c = clipOf(o, sc); if (playT < _c.start - 0.001 || playT > _c.start + _c.dur + 0.001) continue; }
     const ev = evalAt(o, playT);
     if (o.pose) {
       ev.swingLeg = (o.pose.leg || 0) * Math.PI / 180;
@@ -547,13 +549,24 @@ function stagePos(evt) {
 function hitTest(pt) {
   const objs = scene().objects;
   for (let i = objs.length - 1; i >= 0; i--) {
-    const o = objs[i], ev = evalAt(o, playT), { w, h } = objSize(o);
+    const o = objs[i];
+    if (o.hidden || o.locked) continue;
+    { const _c = clipOf(o); if (playT < _c.start - 0.001 || playT > _c.start + _c.dur + 0.001) continue; }
+    const ev = evalAt(o, playT), { w, h } = objSize(o);
     if (Math.abs(pt.x - ev.x) <= w * ev.scale / 2 + 6 && Math.abs(pt.y - ev.y) <= h * ev.scale / 2 + 6) return o;
   }
   return null;
 }
 let drag = null;
 stageEl.addEventListener("pointerdown", (e) => {
+  if (handMode) {
+    const sx = e.clientX, sy = e.clientY, px = panX, py = panY;
+    stageEl.setPointerCapture(e.pointerId);
+    const mv = (ev) => { panX = px + (ev.clientX - sx); panY = py + (ev.clientY - sy); applyStageZoom(); };
+    const up = () => { stageEl.removeEventListener("pointermove", mv); stageEl.removeEventListener("pointerup", up); };
+    stageEl.addEventListener("pointermove", mv); stageEl.addEventListener("pointerup", up);
+    return;
+  }
   const pt = stagePos(e), o = hitTest(pt);
   selId = o ? o.id : null;
   if (o) {
@@ -584,6 +597,8 @@ stageEl.addEventListener("pointerup", () => {
 /* ---------------- Object ops ---------------- */
 function addObject(o) {
   o.id = nid("ob"); o.keys = o.keys || [];
+  if (o.start == null) o.start = 0;
+  if (o.dur == null) o.dur = scene().duration;
   scene().objects.push(o); selId = o.id;
   pushHistory(); drawStage(); renderTracks();
   return o;
@@ -723,10 +738,132 @@ function globalT() {
   for (let i = 0; i < curScene; i++) g += project.scenes[i].duration;
   return g;
 }
+/* ---------------- Layers / clips (P3) ---------------- */
+const TL_PAD = 12, LABEL_W = 148;
+let tlZoomPct = 40, handMode = false, panX = 0, panY = 0;
+function pxPerSec() { return tlZoomPct * 2.4; }
+function clipOf(o, sc) {
+  sc = sc || scene();
+  const st = Math.max(0, o.start || 0);
+  const d = (o.dur == null ? sc.duration : o.dur);
+  return { start: st, dur: Math.max(0.2, Math.min(d, Math.max(0.2, sc.duration - st))) };
+}
+function positionClip(el, st, d) { el.style.left = (st * pxPerSec()) + "px"; el.style.width = Math.max(16, d * pxPerSec()) + "px"; }
+function seekFromClientX(clientX) {
+  const sc = scene(); const rect = $("#tlInner").getBoundingClientRect();
+  playT = clamp((clientX - rect.left - TL_PAD - LABEL_W) / pxPerSec(), 0, sc.duration);
+  drawStage(); drawPlayhead();
+}
+function renderRuler() {
+  const sc = scene(), r = $("#tlRuler"); if (!r) return;
+  const pps = pxPerSec();
+  const steps = [1, 2, 5, 10, 15, 30, 60];
+  const step = steps.find(x => x * pps >= 70) || 60;
+  let html = "";
+  for (let t = 0; t <= sc.duration + 0.001; t += step) html += `<span class="tl-tick" style="left:${TL_PAD + LABEL_W + t * pps}px">${fmt(t)}</span>`;
+  r.innerHTML = html;
+  const w = TL_PAD + LABEL_W + sc.duration * pps + 30;
+  const sw = ($("#tlScroll") || {}).clientWidth || 0;
+  $("#tlInner").style.width = Math.max(sw, w) + "px";
+}
+function clipDrag(el, opts) {
+  el.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".kf") || e.target.closest(".tctl")) return;
+    e.preventDefault(); e.stopPropagation();
+    if (opts.onSelect) opts.onSelect();
+    const rect = el.getBoundingClientRect();
+    let mode = "move";
+    if (e.clientX - rect.left < 9) mode = "l";
+    else if (rect.right - e.clientX < 9) mode = "r";
+    const sc = scene(); const pps = pxPerSec();
+    const c0 = opts.get(); const start0 = c0.start, dur0 = c0.dur;
+    const x0 = e.clientX; let changed = false;
+    el.setPointerCapture(e.pointerId);
+    const mv = (ev) => {
+      const dt = (ev.clientX - x0) / pps;
+      let st = start0, d = dur0;
+      if (mode === "move") st = clamp(start0 + dt, 0, Math.max(0, sc.duration - dur0));
+      else if (mode === "l") { st = clamp(start0 + dt, 0, start0 + dur0 - 0.2); d = dur0 + (start0 - st); }
+      else d = clamp(dur0 + dt, 0.2, sc.duration - start0);
+      st = Math.round(st * 10) / 10; d = Math.round(d * 10) / 10;
+      const cur = opts.get();
+      if (st !== cur.start || d !== cur.dur) { opts.set(st, d); changed = true; positionClip(el, st, d); if (opts.onDrag) opts.onDrag(); drawStage(); }
+    };
+    const up = () => {
+      el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up);
+      if (changed) { pushHistory(); renderTracks(); }
+    };
+    el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up);
+  });
+}
+function renderClipKeys(clip, o, sc) {
+  clip.querySelectorAll(".kf").forEach(k => k.remove());
+  const cl = clipOf(o, sc); const pps = pxPerSec();
+  for (const k of o.keys || []) {
+    if (k.t < cl.start - 0.001 || k.t > cl.start + cl.dur + 0.001) continue;
+    const d = document.createElement("button");
+    d.className = "kf"; d.type = "button"; d.title = `Keyframe at ${k.t.toFixed(1)}s`;
+    d.style.left = ((k.t - cl.start) * pps) + "px";
+    d.addEventListener("click", (ev) => { ev.stopPropagation(); selId = o.id; playT = k.t; drawStage(); drawPlayhead(); renderTracks(); });
+    clip.appendChild(d);
+  }
+}
+let layerMenuEl = null;
+function closeLayerMenu() { if (layerMenuEl) { layerMenuEl.remove(); layerMenuEl = null; } }
+function openLayerMenu(o, anchor) {
+  closeLayerMenu();
+  const m = document.createElement("div");
+  m.className = "layer-menu";
+  m.innerHTML = `<button type="button" data-a="dup">⎘ Duplicate Layer</button><button type="button" data-a="split">✂ Split at Playhead</button><button type="button" data-a="del">🗑 Delete Layer</button>`;
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - 200)) + "px";
+  m.style.top = (r.bottom + 4) + "px";
+  layerMenuEl = m;
+  m.addEventListener("click", (e) => {
+    const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+    closeLayerMenu();
+    if (a === "dup") duplicateLayer(o);
+    else if (a === "split") splitLayer(o);
+    else if (a === "del") deleteLayer(o);
+  });
+  setTimeout(() => {
+    document.addEventListener("pointerdown", function h(ev) {
+      if (!layerMenuEl) { document.removeEventListener("pointerdown", h); return; }
+      if (!layerMenuEl.contains(ev.target)) { closeLayerMenu(); document.removeEventListener("pointerdown", h); }
+    });
+  }, 0);
+}
+function duplicateLayer(o) {
+  const sc = scene();
+  const b = JSON.parse(JSON.stringify(o));
+  b.id = nid("ob"); b.name = o.name + " copy";
+  sc.objects.splice(sc.objects.indexOf(o) + 1, 0, b);
+  selId = b.id;
+  pushHistory(); renderTracks(); drawStage();
+  setNote(`Layer "${b.name}" added.`);
+}
+function splitLayer(o) {
+  const sc = scene(); const cl = clipOf(o, sc);
+  if (playT <= cl.start + 0.05 || playT >= cl.start + cl.dur - 0.05) { setNote("Move the playhead inside the clip to split it."); return; }
+  const b = JSON.parse(JSON.stringify(o));
+  b.id = nid("ob");
+  o.start = cl.start; o.dur = Math.round((playT - cl.start) * 10) / 10;
+  b.start = Math.round(playT * 10) / 10; b.dur = Math.round((cl.start + cl.dur - playT) * 10) / 10;
+  sc.objects.splice(sc.objects.indexOf(o) + 1, 0, b);
+  pushHistory(); renderTracks(); drawStage();
+  setNote(`"${o.name}" split at ${playT.toFixed(1)}s.`);
+}
+function deleteLayer(o) {
+  const sc = scene();
+  sc.objects = sc.objects.filter(x => x.id !== o.id);
+  if (selId === o.id) selId = null;
+  pushHistory(); renderTracks(); drawStage();
+  setNote(`Layer "${o.name}" deleted.`);
+}
 function drawPlayhead() {
-  const sc = scene(), tracks = $("#timelineTracks");
-  const x = 80 + (playT / sc.duration) * Math.max(60, tracks.clientWidth - 100);
-  $("#playhead").style.left = x + "px";
+  const x = TL_PAD + LABEL_W + playT * pxPerSec();
+  const ph = $("#playhead"); if (ph) ph.style.left = x + "px";
   $("#timeDisplay").textContent = `${fmt(globalT())} / ${fmt(totalDur())}`;
 }
 function renderScenes() {
@@ -758,59 +895,126 @@ function renderScenes() {
   });
 }
 function renderTracks() {
-  const wrap = $("#trackRows");
+  const wrap = $("#trackRows"); if (!wrap) return;
   wrap.innerHTML = "";
   const sc = scene();
-  if (!sc.objects.length) {
-    const nr = document.createElement("div");
-    nr.className = "track-row no-layers";
-    nr.innerHTML = `<span class="track-name" style="opacity:.55">No layers</span><div class="track-lane"><span style="position:absolute;left:8px;top:3px;font-size:12px;opacity:.55">No layers in timeline. Select characters or media to add layers.</span></div>`;
-    wrap.appendChild(nr);
+  renderRuler();
+  const pps = pxPerSec();
+  if (!sc.objects.length && !(sc.audio || []).length && !sc.voiceAssetId) {
+    const e = document.createElement("div");
+    e.className = "tl-empty";
+    e.innerHTML = `<div class="tl-empty-ic">▦</div><div class="tl-empty-title">No layers</div><div class="tl-empty-sub">No layers in timeline. Select characters or media to add layers.</div>`;
+    wrap.appendChild(e);
   }
   for (const o of sc.objects) {
+    const cl = clipOf(o, sc);
     const row = document.createElement("div");
-    row.className = "track-row";
-    row.innerHTML = `<span class="track-name" title="${o.name}">${o.name}</span>`;
+    row.className = "track-row" + (o.id === selId ? " sel" : "");
+    const cluster = document.createElement("div");
+    cluster.className = "tcluster";
+    const nm = document.createElement("span");
+    nm.className = "track-name"; nm.title = o.name; nm.textContent = o.name;
+    nm.addEventListener("click", () => { selId = o.id; renderTracks(); drawStage(); });
+    cluster.appendChild(nm);
+    const lockB = document.createElement("button");
+    lockB.className = "tctl"; lockB.type = "button";
+    lockB.textContent = o.locked ? "🔒" : "🔓";
+    lockB.title = o.locked ? "Unlock layer" : "Lock layer";
+    lockB.addEventListener("click", () => { o.locked = !o.locked; pushHistory(); renderTracks(); drawStage(); setNote(`"${o.name}" ${o.locked ? "locked" : "unlocked"}.`); });
+    cluster.appendChild(lockB);
+    const eyeB = document.createElement("button");
+    eyeB.className = "tctl"; eyeB.type = "button";
+    eyeB.textContent = o.hidden ? "🚫" : "👁";
+    eyeB.title = o.hidden ? "Show layer" : "Hide layer";
+    eyeB.addEventListener("click", () => { o.hidden = !o.hidden; pushHistory(); renderTracks(); drawStage(); setNote(`"${o.name}" ${o.hidden ? "hidden" : "shown"}.`); });
+    cluster.appendChild(eyeB);
+    const moreB = document.createElement("button");
+    moreB.className = "tctl"; moreB.type = "button"; moreB.textContent = "⋯";
+    moreB.title = "Layer options";
+    moreB.addEventListener("click", (ev) => { ev.stopPropagation(); selId = o.id; openLayerMenu(o, moreB); });
+    cluster.appendChild(moreB);
+    row.appendChild(cluster);
     const lane = document.createElement("div");
     lane.className = "track-lane";
-    lane.addEventListener("click", (e) => {
-      if (e.target.classList.contains("kf")) return;
+    lane.addEventListener("pointerdown", (e) => {
+      if (e.target !== lane) return;
       const r = lane.getBoundingClientRect();
-      playT = clamp((e.clientX - r.left) / r.width, 0, 1) * sc.duration;
+      playT = clamp((e.clientX - r.left) / pps, 0, sc.duration);
       drawStage(); drawPlayhead();
     });
-    for (const k of o.keys || []) {
-      const d = document.createElement("button");
-      d.className = "kf"; d.type = "button"; d.title = `Keyframe at ${k.t.toFixed(1)}s`;
-      d.style.left = (k.t / sc.duration * 100) + "%";
-      d.addEventListener("click", () => { selId = o.id; playT = k.t; drawStage(); drawPlayhead(); renderTracks(); });
-      lane.appendChild(d);
-    }
+    const clip = document.createElement("div");
+    clip.className = "clip clip-" + o.type + (o.locked ? " locked" : "");
+    positionClip(clip, cl.start, cl.dur);
+    clip.innerHTML = `<span class="clip-name">${o.name}</span><i class="trim trim-l"></i><i class="trim trim-r"></i>`;
+    renderClipKeys(clip, o, sc);
+    if (!o.locked) clipDrag(clip, {
+      get: () => clipOf(o, sc),
+      set: (st, d) => { o.start = st; o.dur = d; },
+      onDrag: () => renderClipKeys(clip, o, sc),
+      onSelect: () => { if (selId !== o.id) { selId = o.id; } }
+    });
+    lane.appendChild(clip);
     row.appendChild(lane);
     wrap.appendChild(row);
   }
   const vrow = document.createElement("div");
   vrow.className = "track-row";
-  vrow.innerHTML = `<span class="track-name">Voice</span>${sc.voiceAssetId ? `<button class="track-x" type="button" title="Remove voice clip">✕</button>` : ""}`;
-  const dvBtn = vrow.querySelector(".track-x");
-  if (dvBtn) dvBtn.addEventListener("click", () => { scene().voiceAssetId = null; pushHistory(); renderTracks(); setNote("Voice clip removed from this scene."); });
+  const vcluster = document.createElement("div");
+  vcluster.className = "tcluster";
+  vcluster.innerHTML = `<span class="track-name">Voice</span>`;
+  if (sc.voiceAssetId) {
+    const dv = document.createElement("button");
+    dv.className = "tctl"; dv.type = "button"; dv.textContent = "✕"; dv.title = "Remove voice clip";
+    dv.addEventListener("click", () => { scene().voiceAssetId = null; pushHistory(); renderTracks(); setNote("Voice clip removed from this scene."); });
+    vcluster.appendChild(dv);
+  }
+  vrow.appendChild(vcluster);
   const vlane = document.createElement("div");
   vlane.className = "track-lane";
-  if (sc.voiceAssetId) vlane.innerHTML = `<span style="position:absolute;left:8px;top:3px;font-size:12px;color:var(--accent)">🔊 Voice clip — plays with this scene</span>`;
+  vlane.addEventListener("pointerdown", (e) => {
+    if (e.target !== vlane) return;
+    const r = vlane.getBoundingClientRect();
+    playT = clamp((e.clientX - r.left) / pps, 0, sc.duration);
+    drawStage(); drawPlayhead();
+  });
+  if (sc.voiceAssetId) {
+    const vc = document.createElement("div");
+    vc.className = "clip clip-voice";
+    positionClip(vc, 0, sc.duration);
+    vc.innerHTML = `<span class="clip-name">🔊 Voice clip — plays with this scene</span>`;
+    vlane.appendChild(vc);
+  }
   vrow.appendChild(vlane);
   wrap.appendChild(vrow);
   for (const clip of sc.audio || []) {
     const row = document.createElement("div");
     row.className = "track-row";
-    row.innerHTML = `<span class="track-name">🔊 ${clip.name}</span><button class="track-x" type="button" title="Remove audio clip">✕</button>`;
-    row.querySelector(".track-x").addEventListener("click", () => { const s2 = scene(); s2.audio = (s2.audio || []).filter(c => c.id !== clip.id); stopClipAudio(clip.id); pushHistory(); renderTracks(); setNote(`"${clip.name}" removed from the timeline.`); });
+    const cluster = document.createElement("div");
+    cluster.className = "tcluster";
+    const nm = document.createElement("span");
+    nm.className = "track-name"; nm.title = clip.name; nm.textContent = "🔊 " + clip.name;
+    cluster.appendChild(nm);
+    const x = document.createElement("button");
+    x.className = "tctl"; x.type = "button"; x.textContent = "✕"; x.title = "Remove audio clip";
+    x.addEventListener("click", () => { const s2 = scene(); s2.audio = (s2.audio || []).filter(c => c.id !== clip.id); stopClipAudio(clip.id); pushHistory(); renderTracks(); setNote(`"${clip.name}" removed from the timeline.`); });
+    cluster.appendChild(x);
+    row.appendChild(cluster);
     const lane = document.createElement("div");
     lane.className = "track-lane";
+    lane.addEventListener("pointerdown", (e) => {
+      if (e.target !== lane) return;
+      const r = lane.getBoundingClientRect();
+      playT = clamp((e.clientX - r.left) / pps, 0, sc.duration);
+      drawStage(); drawPlayhead();
+    });
     const blk = document.createElement("div");
     blk.className = "audio-clip";
-    blk.style.left = (clip.start / sc.duration * 100) + "%";
-    blk.style.width = Math.max(6, clip.dur / sc.duration * 100) + "%";
+    positionClip(blk, clip.start || 0, clip.dur || 1);
     blk.textContent = clip.name;
+    clipDrag(blk, {
+      get: () => ({ start: clip.start || 0, dur: clip.dur || 1 }),
+      set: (st, d) => { clip.start = st; clip.dur = d; }
+    });
     lane.appendChild(blk);
     row.appendChild(lane);
     wrap.appendChild(row);
@@ -935,24 +1139,32 @@ function applyStageZoom() {
     tx = Math.sin(t * 0.11) * sh * 0.35;
     ty = Math.cos(t * 0.13) * sh * 0.28;
   }
-  $("#stageCanvas").style.transform = `translate(${tx}px, ${ty}px) scale(${camZoom * sliderZoom})`;
+  $("#stageCanvas").style.transform = `translate(${tx + panX}px, ${ty + panY}px) scale(${camZoom * sliderZoom})`;
 }
-$("#canvasZoom").addEventListener("input", (e) => { sliderZoom = e.target.value / 100; applyStageZoom(); });
-$("#stageFsBtn").addEventListener("click", () => {
-  const vp = $("#stageViewport");
-  if (document.fullscreenElement) document.exitFullscreen();
-  else if (vp.requestFullscreen) vp.requestFullscreen();
-});
-$("#timelineZoom").addEventListener("input", (e) => {
-  const z = 0.4 + e.target.value / 100;
-  $$(".track-lane").forEach(l => { l.style.transform = `scaleX(${z})`; l.style.transformOrigin = "left center"; });
-});
-$("#layersBtn").addEventListener("click", () => {
-  const rows = $$("#trackRows .track-row");
-  const hidden = rows.length && rows[0].style.display === "none";
-  rows.forEach(r => r.style.display = hidden ? "" : "none");
-  $("#layersBtn").textContent = hidden ? "Layers ▾" : "Layers ▸";
-});
+$("#stageZoomOut").addEventListener("click", () => { sliderZoom = clamp(Math.round((sliderZoom - 0.1) * 10) / 10, 0.5, 1.5); applyStageZoom(); setNote(`Stage zoom ${Math.round(sliderZoom * 100)}%.`); });
+$("#stageZoomIn").addEventListener("click", () => { sliderZoom = clamp(Math.round((sliderZoom + 0.1) * 10) / 10, 0.5, 1.5); applyStageZoom(); setNote(`Stage zoom ${Math.round(sliderZoom * 100)}%.`); });
+$("#tlZoomOut").addEventListener("click", () => { tlZoomPct = clamp(tlZoomPct - 10, 10, 100); $("#tlZoomVal").textContent = tlZoomPct + "%"; renderTracks(); });
+$("#tlZoomIn").addEventListener("click", () => { tlZoomPct = clamp(tlZoomPct + 10, 10, 100); $("#tlZoomVal").textContent = tlZoomPct + "%"; renderTracks(); });
+$("#handBtn").addEventListener("click", () => { handMode = !handMode; $("#handBtn").classList.toggle("active", handMode); setNote(handMode ? "Hand tool on — drag the stage to pan the view." : "Hand tool off."); });
+$("#tlCollapseBtn").addEventListener("click", () => { const c = $("#timelineRoot").classList.toggle("tl-collapsed"); $("#tlCollapseBtn").textContent = c ? "⌄" : "⌃"; });
+$("#dockBtn").addEventListener("click", () => { const t = $("#timelineTracks"); const hid = t.style.display === "none"; t.style.display = hid ? "" : "none"; setNote(hid ? "Layers shown." : "Layers hidden."); });
+$("#lockAllBtn").addEventListener("click", () => { const sc = scene(); const any = sc.objects.some(o => o.locked); sc.objects.forEach(o => { o.locked = !any; }); $("#lockAllBtn").textContent = !any ? "🔒" : "🔓"; pushHistory(); renderTracks(); drawStage(); setNote(!any ? "All layers locked." : "All layers unlocked."); });
+$("#delLayerBtn").addEventListener("click", () => { const o = scene().objects.find(x => x.id === selId); if (o) deleteLayer(o); else setNote("Select a layer first, then delete it."); });
+(function wireSeek() {
+  const wire = (el) => {
+    if (!el) return;
+    el.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      seekFromClientX(e.clientX);
+      el.setPointerCapture(e.pointerId);
+      const mv = (ev) => seekFromClientX(ev.clientX);
+      const up = () => { el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); };
+      el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up);
+    });
+  };
+  wire($("#tlRuler"));
+  wire(document.querySelector("#playhead .ph-handle"));
+})();
 window.addEventListener("resize", drawPlayhead);
 
 /* ---------------- Save / load (IndexedDB) ---------------- */
