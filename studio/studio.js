@@ -1026,36 +1026,81 @@ function chips(items, active) {
     `<button class="chip${i === active ? " active" : ""}" type="button" data-chip="${i}">${c}</button>`).join("")}</div>`;
 }
 function note(t) { return `<p class="panel-note">${t}</p>`; }
-let mediaTab = 0;
-const MEDIA_TABS = ["Backgrounds", "People", "Vehicles", "Animals", "Objects", "Sounds", "Upload"];
-function propCard(v) {
-  const [emoji, name, pro] = v;
-  return `<div class="mini-card clickable" data-prop="${emoji}|${name}|${pro ? 1 : 0}">
-    <span class="mc-ico">${emoji}</span><span class="mc-name">${name}</span>
-    ${pro ? `<span class="lock-tag">🔒 PRO</span>` : `<span class="mc-add">+ Add to canvas</span>`}</div>`;
+let mediaTab = 0, mediaSeg = "single", mediaPackId = null;
+function comboPacks() { return libraryItems.filter(i => i.kind === "combo"); }
+function packViews(pid) { return libraryItems.filter(i => i.kind === "background" && i.packId === pid); }
+function singleLibs() { return libraryItems.filter(i => i.kind === "background" && !i.packId); }
+async function addLibraryImage(f, kind, packId) {
+  const assetId = nid("as"), libId = nid("lib");
+  await idbPut("assets", { id: assetId, blob: f, name: f.name, at: Date.now() });
+  const meta = { id: libId, kind, name: (f.name || "Image").replace(/\.[^.]+$/, ""), pro: false, assetId, blob: f, at: Date.now() };
+  if (packId) meta.packId = packId;
+  await idbPut("library", meta);
+  await loadLibrary();
+  return meta;
 }
-function libCard(it, action, label) {
-  const url = it.blob ? URL.createObjectURL(it.blob) : "";
-  return `<div class="mini-card clickable" data-lib="${action}|${it.id}">
-    ${url ? `<img class="lib-thumb" src="${url}" alt="">` : `<span class="mc-ico">🖼️</span>`}
-    <span class="mc-name">${it.name}</span>
-    ${it.pro ? `<span class="lock-tag">🔒 PRO</span>` : `<span class="mc-add">${label}</span>`}</div>`;
+async function createComboPack(files) {
+  const pid = nid("pk");
+  await idbPut("library", { id: pid, kind: "combo", name: `Combo Pack ${comboPacks().length + 1}`, at: Date.now() });
+  for (const f of files) await addLibraryImage(f, "background", pid);
+  await loadLibrary();
 }
-function mediaGrid() {
-  if (mediaTab === 0) return `<div class="card-grid">${BG_LIST.map(b =>
-    `<div class="mini-card clickable" data-bg="${b[0]}"><span class="mc-ico">🏞️</span><span class="mc-name">${b[1]}</span><span class="mc-add">Set as scene background</span></div>`).join("")}
-    ${libraryItems.filter(i => i.kind === "background").map(i => libCard(i, "bg", "Set as background")).join("")}</div>`;
-  if (mediaTab === 1) return `<div class="card-grid">${Object.keys(allPresets()).map(c =>
-    `<div class="mini-card clickable" data-char="${c}"><span class="mc-ico">🧑</span><span class="mc-name">${c}</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}
-    ${libraryItems.filter(i => i.kind === "character").map(i => libCard(i, "char", "+ Add to canvas")).join("")}</div>`;
-  if (mediaTab === 2) return `<div class="card-grid">${VEHICLE_LIST.map(propCard).join("")}</div>`;
-  if (mediaTab === 3) return `<div class="card-grid">${ANIMAL_LIST.map(propCard).join("")}</div>`;
-  if (mediaTab === 4) return `<div class="card-grid">${PROP_LIST.map(propCard).join("")}
-    ${libraryItems.filter(i => i.kind === "prop").map(i => libCard(i, "prop", "+ Add to canvas")).join("")}</div>`;
-  if (mediaTab === 5) return `<button class="btn btn-accent panel-btn" id="mediaSoundsBtn" type="button">Open Sounds — BGM, SFX &amp; Voice</button>`;
-  return `<label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">Upload Your Image
-    <input type="file" accept="image/*" data-upload hidden></label>
-    ${note("Your image is placed on the canvas and stored with the project in this browser.")}`;
+function packCard(p) {
+  const views = packViews(p.id);
+  const first = views[0];
+  const url = first && first.blob ? URL.createObjectURL(first.blob) : "";
+  return `<div class="mini-card clickable" data-pack="${p.id}">${url ? `<img class="lib-thumb" src="${url}" alt="">` : `<span class="mc-ico">▦</span>`}<span class="mc-name">${p.name}</span><span class="mc-add">${views.length} Views — tap to open</span></div>`;
+}
+function mediaPanel() {
+  const singles = BG_LIST.length + singleLibs().length;
+  const packs = comboPacks();
+  const head = `<div class="panel-head"><h4>Media Library</h4><button class="panel-x" id="mediaClose" type="button" aria-label="Close panel">✕</button></div>
+  <div class="ml-tabs">
+    <button class="ml-tab${mediaTab === 0 ? " active" : ""}" data-mtab="0" type="button">🖼 Backgrounds (${singles + packs.length})</button>
+    <button class="ml-tab${mediaTab === 1 ? " active" : ""}" data-mtab="1" type="button">🎵 Audio (${AUDIO_TRACKS.length})</button>
+  </div>`;
+  if (mediaTab === 1) return head + AUDIO_TRACKS.map(t => `
+    <div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">${t.kind === "BGM" ? "🎵" : "🔊"}</span><span class="mc-name">${t.name}</span><span class="pro-tag">${t.kind}</span>
+      <button class="btn btn-panel panel-btn" data-tpreview="${t.id}" type="button">▶ Preview</button>
+      <button class="btn btn-accent panel-btn" data-tadd="${t.id}" type="button">+ Add to Timeline</button></div>`).join("");
+  const seg = `<div class="ml-seg">
+    <button class="ml-seg-btn${mediaSeg === "single" ? " active" : ""}" data-mseg="single" type="button">📁 Single Backgrounds<span>${singles} items</span></button>
+    <button class="ml-seg-btn${mediaSeg === "combo" ? " active" : ""}" data-mseg="combo" type="button">▦ Combo Backgrounds<span>${packs.length} packs</span></button>
+  </div>`;
+  if (mediaSeg === "single") return head + seg + `
+    <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">＋ Upload Single Background
+      <input type="file" accept="image/*" id="mediaBgUpload" hidden></label>
+    <div class="ml-row"><span>Single Scenes (${singles})</span><button class="btn btn-panel ml-reload" id="mediaReload" type="button">⟳ Reload</button></div>
+    <div class="card-grid">${BG_LIST.map(b =>
+      `<div class="mini-card clickable" data-bg="${b[0]}"><span class="mc-ico">🏞️</span><span class="mc-name">${b[1]}</span><span class="mc-add">Set as scene background</span></div>`).join("")}
+      ${singleLibs().map(i => libCard(i, "bg", "Set as background")).join("")}</div>`;
+  if (mediaPackId) {
+    const p = packs.find(x => x.id === mediaPackId);
+    if (p) { const views = packViews(p.id); return head + seg + `
+    <button class="btn btn-panel panel-btn" id="mediaPackBack" type="button">← All Packs</button>
+    <div class="ml-row"><span>${p.name} (${views.length} Views)</span></div>
+    <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">+ Add View to Folder
+      <input type="file" accept="image/*" id="mediaAddView" hidden></label>
+    <div class="card-grid">${views.map(i => libCard(i, "bg", "Set as background")).join("") || `<p class="panel-sub">No views in this pack yet.</p>`}</div>`; }
+    mediaPackId = null;
+  }
+  return head + seg + `
+    <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">＋ Upload Combo Pack
+      <input type="file" accept="image/*" id="mediaComboUpload" hidden multiple></label>
+    <div class="ml-row"><span>Combo Packs (${packs.length})</span><button class="btn btn-panel ml-reload" id="mediaReload" type="button">⟳ Reload</button></div>
+    ${packs.length ? `<div class="card-grid">${packs.map(packCard).join("")}</div>` : `<p class="panel-sub">No combo packs yet — upload a set of views of one place to make a pack.</p>`}`;
+}
+function wireMedia() {
+  if (!$("#mediaClose")) return;
+  $("#mediaClose").addEventListener("click", () => { panel.hidden = true; $$(".rail-btn").forEach(b => b.classList.remove("active")); });
+  $$("[data-mtab]", panel).forEach(b => b.addEventListener("click", () => { mediaTab = +b.dataset.mtab; selectTool("media"); }));
+  $$("[data-mseg]", panel).forEach(b => b.addEventListener("click", () => { mediaSeg = b.dataset.mseg; mediaPackId = null; selectTool("media"); }));
+  const rl = $("#mediaReload"); if (rl) rl.addEventListener("click", () => { selectTool("media"); setNote(mediaTab === 1 ? "Audio list reloaded." : "Backgrounds reloaded."); });
+  const up = $("#mediaBgUpload"); if (up) up.addEventListener("change", async () => { const f = up.files && up.files[0]; if (!f) return; await addLibraryImage(f, "background"); selectTool("media"); setNote(`"${(f.name || "Image").replace(/\.[^.]+$/, "")}" added to Single Scenes.`); });
+  const cp = $("#mediaComboUpload"); if (cp) cp.addEventListener("change", async () => { const files = Array.from(cp.files || []); if (!files.length) return; await createComboPack(files); selectTool("media"); setNote(`Combo pack added with ${files.length} view(s).`); });
+  $$("[data-pack]", panel).forEach(c => c.addEventListener("click", () => { mediaPackId = c.dataset.pack; selectTool("media"); }));
+  const bk = $("#mediaPackBack"); if (bk) bk.addEventListener("click", () => { mediaPackId = null; selectTool("media"); });
+  const av = $("#mediaAddView"); if (av) av.addEventListener("change", async () => { const f = av.files && av.files[0]; if (!f || !mediaPackId) return; await addLibraryImage(f, "background", mediaPackId); selectTool("media"); setNote("View added to this pack."); });
 }
 const PANELS = {
   character: () => `<h4>Characters (${Object.keys(CHAR_PRESETS).length + Object.keys(CUSTOM_CHARS).length})</h4>
@@ -1070,7 +1115,7 @@ const PANELS = {
     <button class="btn btn-panel panel-btn" id="charStudioBtn" type="button">New from Character Studio</button>
     <button class="btn btn-panel panel-btn" id="charEditBtn" type="button">Edit Character</button>
     ${note("The full library holds 45 characters — the owner adds more over time. On the original, creating and editing characters is a Pro feature; here the Character Studio is open until plans activate (Phase F).")}`,
-  media: () => `<h4>Media</h4>${chips(MEDIA_TABS, mediaTab)}${mediaGrid()}`,
+  media: () => mediaPanel(),
   effect: () => {
     const fx = scene().fx || {};
     const rv = fx.river || { flow: 50, width: 60, angle: 50, color1: "#57b7d9", color2: "#2e6da0" };
@@ -1103,9 +1148,13 @@ const PANELS = {
   },
   assets: () => `<h4>Asset Library</h4>
     <p class="panel-sub">49 props for your scenes — tap to add. 🔒 Pro assets unlock with a plan.</p>
-    ${libraryItems.length ? `<p class="panel-sub"><strong>Owner's library</strong> — also under Media, by kind.</p>
-    <div class="card-grid">${libraryItems.map(i => libCard(i, i.kind === "background" ? "bg" : i.kind, i.kind === "background" ? "Set as background" : "+ Add to canvas")).join("")}</div>` : ""}
+    ${libraryItems.filter(i => i.kind !== "combo" && !i.packId).length ? `<p class="panel-sub"><strong>Owner's library</strong> — backgrounds also appear in the Media Library.</p>
+    <div class="card-grid">${libraryItems.filter(i => i.kind !== "combo" && !i.packId).map(i => libCard(i, i.kind === "background" ? "bg" : i.kind, i.kind === "background" ? "Set as background" : "+ Add to canvas")).join("")}</div>` : ""}
     <div class="card-grid">${PROP_LIST.map(propCard).join("")}</div>
+    <p class="panel-sub" style="margin-top:12px"><strong>Vehicles</strong></p>
+    <div class="card-grid">${VEHICLE_LIST.map(propCard).join("")}</div>
+    <p class="panel-sub" style="margin-top:12px"><strong>Animals</strong></p>
+    <div class="card-grid">${ANIMAL_LIST.map(propCard).join("")}</div>
     <details class="lib-manager">
       <summary>Owner Library — add your own assets</summary>
       <label class="field">Asset image <input type="file" id="libFile" accept="image/*"></label>
@@ -1309,6 +1358,7 @@ function wirePanel() {
   wireFx();
   wireCharStudio();
   wireIk();
+  wireMedia();
   wireStudioTool();
   $$("[data-upload]", panel).forEach(inp => inp.addEventListener("change", () => {
     const f = inp.files && inp.files[0]; if (f) addImageFile(f).catch(() => setNote("That image could not be added."));
@@ -1600,6 +1650,7 @@ function selectTool(id) {
     else openCharStudio(null, "", null);
     return;
   }
+  panel.hidden = false;
   $$(".rail-btn").forEach(b => b.classList.toggle("active", b.dataset.tool === id));
   panel.dataset.tool = id;
   panel.innerHTML = PANELS[id]();
