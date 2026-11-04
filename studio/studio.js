@@ -1348,7 +1348,7 @@ $("#keyBtn").addEventListener("click", () => {
   // bake current visual state if keys already exist and playhead sits between them
   const ev = evalAt(o, playT);
   Object.assign(cur, { x: ev.x, y: ev.y, scale: ev.scale, rot: ev.rot, op: ev.op });
-  const _p = ev.pose || (o.pose ? { ...o.pose } : { arm: 0, leg: 0, head: 0, lean: 0 });
+  const _p = o.pose ? { ...o.pose } : { arm: 0, leg: 0, head: 0, lean: 0 };
   cur.pose = { arm: _p.arm || 0, leg: _p.leg || 0, head: _p.head || 0, lean: _p.lean || 0 };
   cur.ease = "inout";
   o.keys = (o.keys || []).filter(k => Math.abs(k.t - playT) > 0.02);
