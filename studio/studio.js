@@ -130,18 +130,24 @@ function evalAt(o, t) {
 }
 /* ---------------- Camera track (P3) ---------------- */
 let camRowSel = false, selKey = null;
+function clampCamPan(zoom, x, y) {
+  const mx = Math.max(0, 640 * (1 - 1 / Math.max(zoom, 0.001)));
+  const my = Math.max(0, 360 * (1 - 1 / Math.max(zoom, 0.001)));
+  return { x: clamp(x || 0, -mx, mx), y: clamp(y || 0, -my, my) };
+}
 function evalCam(t) {
   const sc = scene();
   const ks = (sc && sc.camKeys) || [];
   if (!ks.length) return { zoom: 1, x: 0, y: 0 };
-  if (t <= ks[0].t) return { zoom: ks[0].zoom, x: ks[0].x || 0, y: ks[0].y || 0 };
+  const fin = (zoom, x, y) => { const c = clampCamPan(zoom, x, y); return { zoom, x: c.x, y: c.y }; };
+  if (t <= ks[0].t) return fin(ks[0].zoom, ks[0].x, ks[0].y);
   const L = ks[ks.length - 1];
-  if (t >= L.t) return { zoom: L.zoom, x: L.x || 0, y: L.y || 0 };
+  if (t >= L.t) return fin(L.zoom, L.x, L.y);
   for (let i = 0; i < ks.length - 1; i++) {
     if (t >= ks[i].t && t <= ks[i + 1].t) {
       const raw = (t - ks[i].t) / Math.max(0.0001, ks[i + 1].t - ks[i].t);
       const k = easeApply(ks[i].ease, raw);
-      return { zoom: lerp(ks[i].zoom, ks[i + 1].zoom, k), x: lerp(ks[i].x || 0, ks[i + 1].x || 0, k), y: lerp(ks[i].y || 0, ks[i + 1].y || 0, k) };
+      return fin(lerp(ks[i].zoom, ks[i + 1].zoom, k), lerp(ks[i].x || 0, ks[i + 1].x || 0, k), lerp(ks[i].y || 0, ks[i + 1].y || 0, k));
     }
   }
   return { zoom: 1, x: 0, y: 0 };
@@ -658,8 +664,9 @@ stageEl.addEventListener("pointerdown", (e) => {
       const dxv = (ev.clientX - sx) / r0.width * 1280 / cam0.zoom;
       const dyv = (ev.clientY - sy) / r0.height * 720 / cam0.zoom;
       const ck = ensureCamKey(playT);
-      ck.x = Math.round(clamp(cam0.x - dxv, -420, 420));
-      ck.y = Math.round(clamp(cam0.y - dyv, -280, 280));
+      const cp = clampCamPan(ck.zoom, cam0.x - dxv, cam0.y - dyv);
+      ck.x = Math.round(cp.x);
+      ck.y = Math.round(cp.y);
       camMoved = true; drawStage();
     };
     const cup = () => { stageEl.removeEventListener("pointermove", cmv); stageEl.removeEventListener("pointerup", cup); if (camMoved) { pushHistory(); renderTracks(); setNote(`Camera framed at ${playT.toFixed(1)}s — the pan is saved in the camera key here.`); } };
@@ -1512,7 +1519,7 @@ function packCard(p) {
   const views = packViews(p.id);
   const first = views[0];
   const url = first && first.blob ? URL.createObjectURL(first.blob) : "";
-  return `<div class="mini-card clickable" data-pack="${p.id}">${url ? `<img class="lib-thumb" src="${url}" alt="">` : `<span class="mc-ico">▦</span>`}<span class="mc-name">${p.name}</span><span class="mc-add">${views.length} Views — tap to open</span></div>`;
+  return `<div class="pack-card clickable" data-pack="${p.id}"><div class="pack-thumb">${url ? `<img src="${url}" alt="">` : `<span class="pack-thumb-ico">▦</span>`}</div><div class="pack-meta"><span class="pack-name">📁 ${p.name}</span><span class="pack-views">▦ ${views.length} Views</span></div></div>`;
 }
 function propCard(v) {
   const [emoji, name, pro] = v;
@@ -1555,7 +1562,7 @@ function mediaPanel() {
     const p = packs.find(x => x.id === mediaPackId);
     if (p) { const views = packViews(p.id); return head + seg + `
     <button class="btn btn-panel panel-btn" id="mediaPackBack" type="button">← All Packs</button>
-    <div class="ml-row"><span>${p.name} (${views.length} Views)</span></div>
+    <div class="ml-row"><span>${p.name} (${views.length} Views)</span><button class="btn btn-panel ml-reload" id="mediaReload" type="button">⟳ Reload</button></div>
     <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">+ Add View to Folder
       <input type="file" accept="image/*" id="mediaAddView" hidden></label>
     <div class="card-grid">${views.map(i => libCard(i, "bg", "Set as background")).join("") || `<p class="panel-sub">No views in this pack yet.</p>`}</div>`; }
@@ -1564,8 +1571,8 @@ function mediaPanel() {
   return head + seg + `
     <label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">＋ Upload Combo Pack
       <input type="file" accept="image/*" id="mediaComboUpload" hidden multiple></label>
-    <div class="ml-row"><span>Combo Packs (${packs.length})</span><button class="btn btn-panel ml-reload" id="mediaReload" type="button">⟳ Reload</button></div>
-    ${packs.length ? `<div class="card-grid">${packs.map(packCard).join("")}</div>` : `<p class="panel-sub">No combo packs yet — upload a set of views of one place to make a pack.</p>`}`;
+    <div class="ml-row"><span>Combo Scene Packs (${packs.length})</span><button class="btn btn-panel ml-reload" id="mediaReload" type="button">⟳ Reload</button></div>
+    ${packs.length ? `<div class="pack-list">${packs.map(packCard).join("")}</div>` : `<p class="panel-sub">No combo packs yet — upload a set of views of one place to make a pack.</p>`}`;
 }
 function audioDuration(blob) {
   return new Promise(res => {
@@ -1984,6 +1991,7 @@ function wireLibrary() {
 /* ---------------- Anim IK wiring ---------------- */
 function wireIk() {
   if (!$("#ikArm")) return;
+  syncIkUI();
   const bind = (id, key) => {
     const el = $("#" + id);
     const apply = () => {
@@ -2663,7 +2671,7 @@ function agoTxt(ts) {
   return new Date(ts || Date.now()).toLocaleDateString();
 }
 function trackCount(p) {
-  try { return (p.scenes || []).reduce((n, sc) => n + ((sc.objects || []).length), 0); } catch { return 0; }
+  try { return (p.scenes || []).reduce((n, sc) => n + 1 + ((sc.objects || []).length) + 1 + ((sc.audio || []).length), 0); } catch { return 0; }
 }
 function captureThumb() {
   try {
