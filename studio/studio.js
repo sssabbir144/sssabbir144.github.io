@@ -1051,15 +1051,29 @@ function packCard(p) {
   const url = first && first.blob ? URL.createObjectURL(first.blob) : "";
   return `<div class="mini-card clickable" data-pack="${p.id}">${url ? `<img class="lib-thumb" src="${url}" alt="">` : `<span class="mc-ico">▦</span>`}<span class="mc-name">${p.name}</span><span class="mc-add">${views.length} Views — tap to open</span></div>`;
 }
+function propCard(v) {
+  const [emoji, name, pro] = v;
+  return `<div class="mini-card clickable" data-prop="${emoji}|${name}|${pro ? 1 : 0}">
+    <span class="mc-ico">${emoji}</span><span class="mc-name">${name}</span>
+    ${pro ? `<span class="lock-tag">🔒 PRO</span>` : `<span class="mc-add">+ Add to canvas</span>`}</div>`;
+}
+function libCard(it, action, label) {
+  const url = it.blob ? URL.createObjectURL(it.blob) : "";
+  return `<div class="mini-card clickable" data-lib="${action}|${it.id}">
+    ${url ? `<img class="lib-thumb" src="${url}" alt="">` : `<span class="mc-ico">🖼️</span>`}
+    <span class="mc-name">${it.name}</span>
+    ${it.pro ? `<span class="lock-tag">🔒 PRO</span>` : `<span class="mc-add">${label}</span>`}</div>`;
+}
 function mediaPanel() {
   const singles = BG_LIST.length + singleLibs().length;
   const packs = comboPacks();
   const head = `<div class="panel-head"><h4>Media Library</h4><button class="panel-x" id="mediaClose" type="button" aria-label="Close panel">✕</button></div>
   <div class="ml-tabs">
     <button class="ml-tab${mediaTab === 0 ? " active" : ""}" data-mtab="0" type="button">🖼 Backgrounds (${singles + packs.length})</button>
-    <button class="ml-tab${mediaTab === 1 ? " active" : ""}" data-mtab="1" type="button">🎵 Audio (${AUDIO_TRACKS.length})</button>
+    <button class="ml-tab${mediaTab === 1 ? " active" : ""}" data-mtab="1" type="button">🎵 Audio (${allTracks().length})</button>
   </div>`;
-  if (mediaTab === 1) return head + AUDIO_TRACKS.map(t => `
+  if (mediaTab === 1) return head + `<label class="btn btn-accent panel-btn" style="display:block;text-align:center;cursor:pointer">＋ Upload Audio
+      <input type="file" accept="audio/*" id="mediaAudioUpload" hidden></label>` + allTracks().map(t => `
     <div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">${t.kind === "BGM" ? "🎵" : "🔊"}</span><span class="mc-name">${t.name}</span><span class="pro-tag">${t.kind}</span>
       <button class="btn btn-panel panel-btn" data-tpreview="${t.id}" type="button">▶ Preview</button>
       <button class="btn btn-accent panel-btn" data-tadd="${t.id}" type="button">+ Add to Timeline</button></div>`).join("");
@@ -1090,8 +1104,18 @@ function mediaPanel() {
     <div class="ml-row"><span>Combo Packs (${packs.length})</span><button class="btn btn-panel ml-reload" id="mediaReload" type="button">⟳ Reload</button></div>
     ${packs.length ? `<div class="card-grid">${packs.map(packCard).join("")}</div>` : `<p class="panel-sub">No combo packs yet — upload a set of views of one place to make a pack.</p>`}`;
 }
+function audioDuration(blob) {
+  return new Promise(res => {
+    const a = new Audio(); const url = URL.createObjectURL(blob);
+    a.preload = "metadata";
+    a.onloadedmetadata = () => { const d = a.duration; URL.revokeObjectURL(url); res(isFinite(d) && d > 0 ? Math.round(d * 10) / 10 : 5); };
+    a.onerror = () => { URL.revokeObjectURL(url); res(5); };
+    a.src = url;
+  });
+}
 function wireMedia() {
   if (!$("#mediaClose")) return;
+  const au = $("#mediaAudioUpload"); if (au) au.addEventListener("change", async () => { const f = au.files && au.files[0]; if (!f) return; const assetId = nid("as"); await idbPut("assets", { id: assetId, blob: f, name: f.name, at: Date.now() }); const dur = await audioDuration(f); await idbPut("library", { id: nid("trk"), kind: "audiotrack", name: (f.name || "Audio").replace(/\.[^.]+$/, ""), akind: "BGM", assetId, dur, at: Date.now() }); await loadLibrary(); selectTool("media"); setNote(`Audio "${(f.name || "Audio").replace(/\.[^.]+$/, "")}" added — Preview it or add it to the timeline.`); });
   $("#mediaClose").addEventListener("click", () => { panel.hidden = true; $$(".rail-btn").forEach(b => b.classList.remove("active")); });
   $$("[data-mtab]", panel).forEach(b => b.addEventListener("click", () => { mediaTab = +b.dataset.mtab; selectTool("media"); }));
   $$("[data-mseg]", panel).forEach(b => b.addEventListener("click", () => { mediaSeg = b.dataset.mseg; mediaPackId = null; selectTool("media"); }));
@@ -1230,6 +1254,8 @@ const AUDIO_TRACKS = [
   { id: "sfx-thunder", name: "Thunder", kind: "SFX", dur: 4 }
 ];
 let soundFilter = "All";
+let userTracks = [];
+function allTracks() { return AUDIO_TRACKS.concat(userTracks); }
 function wavBlob(buffer) {
   const nCh = Math.min(2, buffer.numberOfChannels), sr = buffer.sampleRate, len = buffer.length;
   const bytes = 44 + len * nCh * 2, ab = new ArrayBuffer(bytes), v = new DataView(ab);
@@ -1259,6 +1285,12 @@ async function synthTrack(tr) {
 const trackBlobs = {};
 async function trackBlob(id) {
   if (trackBlobs[id]) return trackBlobs[id];
+  const ut = userTracks.find(t => t.id === id);
+  if (ut) {
+    if (memBlobs[ut.assetId]) { trackBlobs[id] = memBlobs[ut.assetId]; return trackBlobs[id]; }
+    try { const rec = await idbGet("assets", ut.assetId); if (rec && rec.blob) { trackBlobs[id] = rec.blob; memBlobs[ut.assetId] = rec.blob; return rec.blob; } } catch { }
+    return null;
+  }
   const key = "trk-" + id;
   if (memBlobs[key]) { trackBlobs[id] = memBlobs[key]; return trackBlobs[id]; }
   try { const rec = await idbGet("assets", key); if (rec && rec.blob) { trackBlobs[id] = rec.blob; memBlobs[key] = rec.blob; return rec.blob; } } catch { }
@@ -1270,7 +1302,8 @@ async function trackBlob(id) {
 }
 let previewAudio = null, previewId = null;
 async function previewTrack(id) {
-  const tr = AUDIO_TRACKS.find(t => t.id === id);
+  const tr = allTracks().find(t => t.id === id);
+  if (!tr) return;
   if (previewAudio && previewId === id) { previewAudio.pause(); previewAudio = null; previewId = null; setNote("Preview stopped."); return; }
   if (previewAudio) { previewAudio.pause(); previewAudio = null; }
   previewId = id;
@@ -1282,11 +1315,12 @@ async function previewTrack(id) {
   setNote(`Playing "${tr.name}" — click Preview again to stop.`);
 }
 async function addSceneAudio(id) {
-  const tr = AUDIO_TRACKS.find(t => t.id === id);
+  const tr = allTracks().find(t => t.id === id);
+  if (!tr) return;
   setNote(`Preparing "${tr.name}"…`);
   await trackBlob(id);
   const sc = scene(); sc.audio = sc.audio || [];
-  sc.audio.push({ id: nid("au"), assetId: "trk-" + id, name: tr.name, kind: tr.kind, start: 0, dur: tr.dur });
+  sc.audio.push({ id: nid("au"), assetId: tr.user ? tr.id : "trk-" + id, name: tr.name, kind: tr.kind, start: 0, dur: tr.dur || 5 });
   pushHistory(); renderTracks();
   setNote(`"${tr.name}" is on the timeline — press Play and it plays with the scene.`);
 }
@@ -1298,7 +1332,7 @@ function syncClipAudio() {
   for (const clip of sc.audio || []) {
     const inWin = playT >= clip.start && playT < clip.start + clip.dur;
     if (inWin && !clipAudios.has(clip.id)) {
-      const blob = memBlobs[clip.assetId];
+      const blob = memBlobs[clip.assetId] || trackBlobs[clip.assetId.replace("trk-", "")] || trackBlobs[clip.assetId];
       if (blob) { const a = new Audio(URL.createObjectURL(blob)); try { a.currentTime = Math.max(0, playT - clip.start); } catch { } a.play().catch(() => { }); clipAudios.set(clip.id, a); }
       else trackBlob(clip.assetId.replace("trk-", "")).catch(() => { });
     } else if (!inWin) stopClipAudio(clip.id);
@@ -1408,6 +1442,7 @@ function wirePanel() {
 let libraryItems = [];
 async function loadLibrary() {
   try { libraryItems = await idbAll("library"); } catch { libraryItems = []; }
+  userTracks = libraryItems.filter(i => i.kind === "audiotrack").map(i => ({ id: i.id, name: i.name, kind: i.akind || "BGM", dur: i.dur || 5, assetId: i.assetId, user: true }));
 }
 function blobToDataURL(blob) {
   return new Promise((res) => {
