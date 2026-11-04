@@ -23,45 +23,32 @@ function idbOpen() {
       if (!d.objectStoreNames.contains("library")) d.createObjectStore("library", { keyPath: "id" });
       if (!d.objectStoreNames.contains("customChars")) d.createObjectStore("customChars", { keyPath: "name" });
     };
-    r.onsuccess = () => res(r.result);
+    r.onsuccess = () => { const d = r.result; d.onversionchange = () => { try { d.close(); } catch { } if (_db === d) _db = null; }; res(d); };
     r.onerror = () => rej(r.error);
   });
 }
 async function db() { if (!_db) _db = await idbOpen(); return _db; }
-async function idbPut(store, val) {
-  const d = await db();
-  return new Promise((res, rej) => {
-    const t = d.transaction(store, "readwrite");
-    t.objectStore(store).put(val);
-    t.oncomplete = () => res(true);
-    t.onerror = () => rej(t.error);
-  });
+async function idbTx(store, mode, run) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const d = await db();
+    try {
+      return await new Promise((res, rej) => {
+        const t = d.transaction(store, mode);
+        const rq = run(t.objectStore(store));
+        if (rq) { rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }
+        t.oncomplete = () => res(true);
+        t.onerror = () => rej(t.error);
+      });
+    } catch (e) {
+      if (attempt === 0 && e && e.name === "InvalidStateError") { _db = null; continue; }
+      throw e;
+    }
+  }
 }
-async function idbGet(store, key) {
-  const d = await db();
-  return new Promise((res, rej) => {
-    const q = d.transaction(store, "readonly").objectStore(store).get(key);
-    q.onsuccess = () => res(q.result || null);
-    q.onerror = () => rej(q.error);
-  });
-}
-async function idbDel(store, key) {
-  const d = await db();
-  return new Promise((res, rej) => {
-    const t = d.transaction(store, "readwrite");
-    t.objectStore(store).delete(key);
-    t.oncomplete = () => res(true);
-    t.onerror = () => rej(t.error);
-  });
-}
-async function idbAll(store) {
-  const d = await db();
-  return new Promise((res, rej) => {
-    const q = d.transaction(store, "readonly").objectStore(store).getAll();
-    q.onsuccess = () => res(q.result || []);
-    q.onerror = () => rej(q.error);
-  });
-}
+async function idbPut(store, val) { return idbTx(store, "readwrite", os => { os.put(val); }); }
+async function idbGet(store, key) { const v = await idbTx(store, "readonly", os => os.get(key)); return v === true ? null : (v || null); }
+async function idbDel(store, key) { return idbTx(store, "readwrite", os => { os.delete(key); }); }
+async function idbAll(store) { const v = await idbTx(store, "readonly", os => os.getAll()); return Array.isArray(v) ? v : []; }
 
 /* ---------------- Presets: character factory + media ---------------- */
 const CHAR_PRESETS = {
@@ -93,7 +80,7 @@ const VEHICLE_LIST = [["🚗", "Car", 0], ["🚲", "Bike", 0], ["🚌", "Bus", 0
 const ANIMAL_LIST = [["🐶", "Dog", 0], ["🐱", "Cat", 0], ["🐦", "Bird", 0], ["🐴", "Horse", 1], ["🐰", "Bunny", 0], ["🐸", "Frog", 0]];
 
 /* ---------------- Project state ---------------- */
-function freshScene(name) { return { id: nid("sc"), name, duration: 5, bg: null, objects: [], voiceAssetId: null }; }
+function freshScene(name) { return { id: nid("sc"), name, duration: 5, bg: null, objects: [], voiceAssetId: null, audio: [] }; }
 function freshProject() { return { name: "Untitled Project", scenes: [freshScene("Scene 1")] }; }
 let project = freshProject();
 let savedName = null; // name the current project was last saved under (rename migration)
@@ -804,12 +791,30 @@ function renderTracks() {
   }
   const vrow = document.createElement("div");
   vrow.className = "track-row";
-  vrow.innerHTML = `<span class="track-name">Voice</span>`;
+  vrow.innerHTML = `<span class="track-name">Voice</span>${sc.voiceAssetId ? `<button class="track-x" type="button" title="Remove voice clip">✕</button>` : ""}`;
+  const dvBtn = vrow.querySelector(".track-x");
+  if (dvBtn) dvBtn.addEventListener("click", () => { scene().voiceAssetId = null; pushHistory(); renderTracks(); setNote("Voice clip removed from this scene."); });
   const vlane = document.createElement("div");
   vlane.className = "track-lane";
   if (sc.voiceAssetId) vlane.innerHTML = `<span style="position:absolute;left:8px;top:3px;font-size:12px;color:var(--accent)">🔊 Voice clip — plays with this scene</span>`;
   vrow.appendChild(vlane);
   wrap.appendChild(vrow);
+  for (const clip of sc.audio || []) {
+    const row = document.createElement("div");
+    row.className = "track-row";
+    row.innerHTML = `<span class="track-name">🔊 ${clip.name}</span><button class="track-x" type="button" title="Remove audio clip">✕</button>`;
+    row.querySelector(".track-x").addEventListener("click", () => { const s2 = scene(); s2.audio = (s2.audio || []).filter(c => c.id !== clip.id); stopClipAudio(clip.id); pushHistory(); renderTracks(); setNote(`"${clip.name}" removed from the timeline.`); });
+    const lane = document.createElement("div");
+    lane.className = "track-lane";
+    const blk = document.createElement("div");
+    blk.className = "audio-clip";
+    blk.style.left = (clip.start / sc.duration * 100) + "%";
+    blk.style.width = Math.max(6, clip.dur / sc.duration * 100) + "%";
+    blk.textContent = clip.name;
+    lane.appendChild(blk);
+    row.appendChild(lane);
+    wrap.appendChild(row);
+  }
   drawPlayhead();
 }
 /* transport + playback */
@@ -818,6 +823,7 @@ function stopPlayback() {
   playing = false; cancelAnimationFrame(rafId);
   $("#playBtn").textContent = "▶";
   if (voiceAudio) { voiceAudio.pause(); voiceAudio = null; }
+  stopAllClipAudio();
 }
 function playSceneVoice() {
   const sc = scene();
@@ -845,7 +851,7 @@ function stepPlayback(ts) {
       renderScenes(); renderTracks(); playSceneVoice();
     } else { playT = scene().duration; drawStage(); drawPlayhead(); stopPlayback(); return; }
   }
-  drawStage(); drawPlayhead();
+  drawStage(); drawPlayhead(); syncClipAudio();
   rafId = requestAnimationFrame(stepPlayback);
 }
 $("#playBtn").addEventListener("click", () => {
@@ -996,9 +1002,9 @@ const TUTORIALS = [
 const TOOLS = [
   { id: "character", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="4.8" r="2.2"/><path d="M14.8 7.2 11.8 12.5"/><path d="M13.9 9.2 17 11l-1.6 2.6"/><path d="M13.9 9.2 10.4 10.8l1.4 2.6"/><path d="M11.8 12.5 16.2 14.8l2 4"/><path d="M11.8 12.5 8.6 15.8 5.2 14.6"/></svg>', name: "Character" },
   { id: "media", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.8a2 2 0 0 1 2-2h3.4l2.1 2.4h7.5a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>', name: "Media" },
-  { id: "effect", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h8M18 7h2M4 12h2M12 12h8M4 17h10M20 17h0"/><circle cx="15" cy="7" r="2.1"/><circle cx="9" cy="12" r="2.1"/><circle cx="17" cy="17" r="2.1"/></svg>', name: "Effect" },
+  { id: "effect", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16"/><path d="M12 4v16"/><path d="M18 4v16"/><path d="M3.5 15h5"/><path d="M9.5 8h5"/><path d="M15.5 15h5"/></svg>', name: "Effect" },
   { id: "studio", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.4" r="2.5"/><path d="M9.2 8.6h5.6l.9 6h-7.4z"/><path d="M9.3 9.4 6.2 13"/><path d="M14.7 9.4 17.8 13"/><path d="M9.9 14.6 8.9 20.4"/><path d="M14.1 14.6l1 5.8"/></svg>', name: "Studio" },
-  { id: "assets", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5.4 20.6c.7-3.6 3.3-5.4 6.6-5.4s5.9 1.8 6.6 5.4"/></svg>', name: "Asset Library" },
+  { id: "assets", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h9.8a4.3 4.3 0 0 0 .9-8.5 5.8 5.8 0 0 0-11.2-1.2A4.9 4.9 0 0 0 7 18.5z"/><path d="M12.3 12.4 10.2 15.2h1.8l-1 3.2 3.1-3.9h-1.9l1.1-2.1z" fill="currentColor" stroke="none"/></svg>', name: "Asset Library" },
   { id: "sprite", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9.3 4v16M14.7 4v16M4 9.3h16M4 14.7h16"/></svg>', name: "Sprite Sheet" },
   { id: "sounds", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M5 10v4"/><path d="M9.5 7v10"/><path d="M14 4.5v15"/><path d="M18.5 8v8"/></svg>', name: "Sounds" },
   { id: "ik", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="17.5" cy="4.6" r="2.1"/><path d="M15.8 6.8 12.5 12.8"/><path d="M14.8 8.6l2.4 2.8-1.6 2.4"/><path d="M14.8 8.6 11.4 10.8l1.2 2.8"/><path d="M12.5 12.8l4.3 2.8-0.6 4.4"/><path d="M12.5 12.8 9.4 16.4 6.4 14.6"/><path d="M2.2 9.5h3.2"/><path d="M1.4 12.6h3.2"/><path d="M2.2 15.7h2.8"/></svg>', name: "Anim IK" },
@@ -1052,8 +1058,9 @@ function mediaGrid() {
     ${note("Your image is placed on the canvas and stored with the project in this browser.")}`;
 }
 const PANELS = {
-  character: () => `<h4>Character</h4>
+  character: () => `<h4>Characters (${Object.keys(CHAR_PRESETS).length + Object.keys(CUSTOM_CHARS).length})</h4>
     <p class="panel-sub">Tap a character to add it to your scene. Drag it on the canvas; animate it with ◆ Keyframe.</p>
+    <div class="field-row" style="margin-bottom:10px"><input type="search" id="charSearch" placeholder="Search characters…" style="flex:1"><button class="btn btn-panel" id="charReloadBtn" type="button">⟳ Reload</button></div>
     <div class="card-grid">${Object.keys(CHAR_PRESETS).map(c =>
       `<div class="mini-card clickable" data-char="${c}"><span class="mc-ico">🧑</span><span class="mc-name">${c}</span><span class="pro-tag">MULTI PRO</span><span class="mc-add">+ Add to canvas</span></div>`).join("")}</div>
     ${Object.keys(CUSTOM_CHARS).length ? `<p class="panel-sub" style="margin-top:12px"><strong>Your characters</strong> — made in the Character Studio.</p>
@@ -1120,16 +1127,18 @@ const PANELS = {
       `<div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🐾</span><span class="mc-name">${s[1]}</span>
       <button class="btn btn-panel panel-btn" data-sprite="${s[0]}|${s[1]}" type="button">Add to Timeline</button></div>`).join("")}`,
   sounds: () => `<h4>Sounds</h4>
-    ${chips(["All", "BGM", "SFX", "Voice"], 3)}
-    <div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">🎵</span><span class="mc-name">Background Music &amp; Effects</span>
-      <span class="panel-sub" style="display:block;margin:4px 0 0">A starter library is included; more tracks are being added.</span></div>
-    <h4 style="margin-top:14px">Voice</h4>
+    <div class="chip-row">${["All", "BGM", "SFX", "Voice"].map(f => `<button class="chip${soundFilter === f ? " active" : ""}" type="button" data-sfilter="${f}">${f}</button>`).join("")}</div>
+    ${soundFilter !== "Voice" ? AUDIO_TRACKS.filter(t => soundFilter === "All" || t.kind === soundFilter).map(t => `
+    <div class="mini-card" style="margin-bottom:9px"><span class="mc-ico">${t.kind === "BGM" ? "🎵" : "🔊"}</span><span class="mc-name">${t.name}</span><span class="pro-tag">${t.kind}</span>
+      <button class="btn btn-panel panel-btn" data-tpreview="${t.id}" type="button">▶ Preview</button>
+      <button class="btn btn-accent panel-btn" data-tadd="${t.id}" type="button">+ Add to Timeline</button></div>`).join("") : ""}
+    ${soundFilter === "All" || soundFilter === "Voice" ? `<h4 style="margin-top:14px">Voice</h4>
     <p class="panel-sub">Record your voice or upload audio — it becomes this scene's voice track and plays during playback.</p>
     <button class="btn btn-accent panel-btn" id="recordBtn" type="button">● Record Voice</button>
     <div id="recordOut"></div>
     <label class="btn btn-panel panel-btn" style="display:block;text-align:center;cursor:pointer">Upload Audio
       <input type="file" accept="audio/*" id="audioUpload" hidden></label>
-    <div id="audioOut"></div>`,
+    <div id="audioOut"></div>` : ""}`,
   ik: () => {
     const o = selObj();
     const pose = (o && o.pose) || { arm: 0, leg: 0, head: 0, lean: 0 };
@@ -1161,6 +1170,90 @@ const PANELS = {
     <p class="panel-sub">Watch Ss Animation cartoons on YouTube.</p>
     <button class="btn btn-accent panel-btn" id="openCinemaBtn" type="button">Open Cinema</button>`
 };
+/* ---------------- Starter audio library (synthesised, stored as assets) ---------------- */
+const AUDIO_TRACKS = [
+  { id: "bgm-happy", name: "Happy Morning", kind: "BGM", dur: 8 },
+  { id: "bgm-calm", name: "Calm Evening", kind: "BGM", dur: 8 },
+  { id: "bgm-adventure", name: "Adventure Day", kind: "BGM", dur: 8 },
+  { id: "sfx-rain", name: "Rain", kind: "SFX", dur: 5 },
+  { id: "sfx-birds", name: "Morning Birds", kind: "SFX", dur: 5 },
+  { id: "sfx-thunder", name: "Thunder", kind: "SFX", dur: 4 }
+];
+let soundFilter = "All";
+function wavBlob(buffer) {
+  const nCh = Math.min(2, buffer.numberOfChannels), sr = buffer.sampleRate, len = buffer.length;
+  const bytes = 44 + len * nCh * 2, ab = new ArrayBuffer(bytes), v = new DataView(ab);
+  const wstr = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  wstr(0, "RIFF"); v.setUint32(4, bytes - 8, true); wstr(8, "WAVEfmt "); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, nCh, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * nCh * 2, true); v.setUint16(32, nCh * 2, true); v.setUint16(34, 16, true);
+  wstr(36, "data"); v.setUint32(40, len * nCh * 2, true);
+  const chans = []; for (let c = 0; c < nCh; c++) chans.push(buffer.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < len; i++) for (let c = 0; c < nCh; c++) { const s = Math.max(-1, Math.min(1, chans[c][i])); v.setInt16(o, s * 0x7fff, true); o += 2; }
+  return new Blob([ab], { type: "audio/wav" });
+}
+async function synthTrack(tr) {
+  const sr = 22050, ctx = new OfflineAudioContext(1, Math.ceil(sr * tr.dur), sr);
+  const mf = m => 440 * Math.pow(2, (m - 69) / 12);
+  const tone = (m, t, d, type, g, slideTo) => { const o = ctx.createOscillator(), gn = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(mf(m), t); if (slideTo) o.frequency.exponentialRampToValueAtTime(mf(slideTo), t + d); gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(g, t + 0.02); gn.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(gn); gn.connect(ctx.destination); o.start(t); o.stop(t + d + 0.05); };
+  const noise = (t, d, freq, g, brown) => { const len = Math.ceil(sr * d), buf = ctx.createBuffer(1, len, sr), ch = buf.getChannelData(0); let last = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; ch[i] = brown ? last * 3.5 : w; } const s2 = ctx.createBufferSource(); s2.buffer = buf; const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = freq; const gn = ctx.createGain(); gn.gain.setValueAtTime(g, t); gn.gain.exponentialRampToValueAtTime(0.001, t + d); s2.connect(f); f.connect(gn); gn.connect(ctx.destination); s2.start(t); };
+  if (tr.id === "bgm-happy") { [72, 76, 79, 76, 81, 79, 76, 72, 74, 76, 79, 84, 79, 76, 74, 71].forEach((m, i) => tone(m, i * 0.5, 0.45, "triangle", 0.16)); [48, 55, 52, 53].forEach((m, i) => { tone(m, i * 2, 1.9, "sine", 0.12); tone(m + 7, i * 2, 1.9, "sine", 0.06); }); }
+  else if (tr.id === "bgm-calm") { [60, 64, 67, 71, 69, 67, 64, 62, 60, 64, 67, 71, 74, 71, 67, 64].forEach((m, i) => tone(m, i * 0.5, 0.9, "sine", 0.12)); [36, 41, 43, 48].forEach((m, i) => tone(m, i * 2, 2.2, "sine", 0.08)); }
+  else if (tr.id === "bgm-adventure") { [67, 67, 71, 74, 79, 74, 71, 67, 69, 71, 74, 71, 67, 64, 62, 64].forEach((m, i) => tone(m, i * 0.5, 0.4, "square", 0.05)); [43, 43, 48, 50].forEach((m, i) => { tone(m, i * 2, 0.5, "triangle", 0.14); tone(m, i * 2 + 1, 0.5, "triangle", 0.14); }); }
+  else if (tr.id === "sfx-rain") { noise(0, tr.dur, 1400, 0.20, false); noise(0, tr.dur, 500, 0.10, false); }
+  else if (tr.id === "sfx-birds") { [0.3, 0.9, 1.7, 2.6, 3.4, 4.2].forEach((t, i) => tone(96 + (i % 3) * 2, t, 0.28, "sine", 0.10, 103 + (i % 3) * 2)); }
+  else if (tr.id === "sfx-thunder") { noise(0.1, 1.2, 220, 0.5, true); noise(1.6, 2.2, 140, 0.34, true); }
+  return wavBlob(await ctx.startRendering());
+}
+const trackBlobs = {};
+async function trackBlob(id) {
+  if (trackBlobs[id]) return trackBlobs[id];
+  const key = "trk-" + id;
+  if (memBlobs[key]) { trackBlobs[id] = memBlobs[key]; return trackBlobs[id]; }
+  try { const rec = await idbGet("assets", key); if (rec && rec.blob) { trackBlobs[id] = rec.blob; memBlobs[key] = rec.blob; return rec.blob; } } catch { }
+  const tr = AUDIO_TRACKS.find(t => t.id === id);
+  const blob = await synthTrack(tr);
+  trackBlobs[id] = blob; memBlobs[key] = blob;
+  try { await idbPut("assets", { id: key, blob, name: tr.name, at: Date.now() }); } catch { }
+  return blob;
+}
+let previewAudio = null, previewId = null;
+async function previewTrack(id) {
+  const tr = AUDIO_TRACKS.find(t => t.id === id);
+  if (previewAudio && previewId === id) { previewAudio.pause(); previewAudio = null; previewId = null; setNote("Preview stopped."); return; }
+  if (previewAudio) { previewAudio.pause(); previewAudio = null; }
+  previewId = id;
+  setNote(`Preparing "${tr.name}"…`);
+  const blob = await trackBlob(id);
+  if (previewId !== id) return;
+  previewAudio = new Audio(URL.createObjectURL(blob));
+  previewAudio.play().catch(() => setNote("Preview could not play in this browser."));
+  setNote(`Playing "${tr.name}" — click Preview again to stop.`);
+}
+async function addSceneAudio(id) {
+  const tr = AUDIO_TRACKS.find(t => t.id === id);
+  setNote(`Preparing "${tr.name}"…`);
+  await trackBlob(id);
+  const sc = scene(); sc.audio = sc.audio || [];
+  sc.audio.push({ id: nid("au"), assetId: "trk-" + id, name: tr.name, kind: tr.kind, start: 0, dur: tr.dur });
+  pushHistory(); renderTracks();
+  setNote(`"${tr.name}" is on the timeline — press Play and it plays with the scene.`);
+}
+const clipAudios = new Map();
+function stopClipAudio(cid) { const a = clipAudios.get(cid); if (a) { try { a.pause(); } catch { } clipAudios.delete(cid); } }
+function stopAllClipAudio() { for (const cid of Array.from(clipAudios.keys())) stopClipAudio(cid); }
+function syncClipAudio() {
+  const sc = scene();
+  for (const clip of sc.audio || []) {
+    const inWin = playT >= clip.start && playT < clip.start + clip.dur;
+    if (inWin && !clipAudios.has(clip.id)) {
+      const blob = memBlobs[clip.assetId];
+      if (blob) { const a = new Audio(URL.createObjectURL(blob)); try { a.currentTime = Math.max(0, playT - clip.start); } catch { } a.play().catch(() => { }); clipAudios.set(clip.id, a); }
+      else trackBlob(clip.assetId.replace("trk-", "")).catch(() => { });
+    } else if (!inWin) stopClipAudio(clip.id);
+  }
+}
 async function attachVoice(blob, label) {
   const assetId = nid("vo");
   let stored = true;
@@ -1178,6 +1271,13 @@ function wirePanel() {
   $$("[data-soon]", panel).forEach(b => b.addEventListener("click", () =>
     setNote(`${b.dataset.soon} switches on in the next studio update.`)));
   $$("[data-char]", panel).forEach(c => c.addEventListener("click", () => addCharacter(c.dataset.char)));
+  const charSearchEl = $("#charSearch", panel);
+  if (charSearchEl) charSearchEl.addEventListener("input", () => { const q = charSearchEl.value.trim().toLowerCase(); $$("[data-char]", panel).forEach(c => { c.style.display = !q || c.textContent.toLowerCase().includes(q) ? "" : "none"; }); });
+  const charReloadEl = $("#charReloadBtn", panel);
+  if (charReloadEl) charReloadEl.addEventListener("click", () => { selectTool("character"); setNote("Character list reloaded."); });
+  $$("[data-sfilter]", panel).forEach(b => b.addEventListener("click", () => { soundFilter = b.dataset.sfilter; selectTool("sounds"); }));
+  $$("[data-tpreview]", panel).forEach(b => b.addEventListener("click", () => previewTrack(b.dataset.tpreview)));
+  $$("[data-tadd]", panel).forEach(b => b.addEventListener("click", () => addSceneAudio(b.dataset.tadd)));
   $$("[data-bg]", panel).forEach(c => c.addEventListener("click", () => {
     scene().bg = c.dataset.bg; pushHistory(); drawStage();
     setNote("Background set for this scene.");

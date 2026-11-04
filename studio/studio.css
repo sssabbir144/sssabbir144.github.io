@@ -371,3 +371,6 @@ body.gate-open { overflow: hidden; }
 .stage-empty{inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px}
 .stage-empty-title{color:rgba(255,255,255,.62);text-shadow:none}
 .stage-empty-sub{color:rgba(255,255,255,.42);text-shadow:none}
+.track-x { margin-left: auto; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; width: 20px; height: 20px; line-height: 1; cursor: pointer; flex: none; padding: 0; }
+.track-x:hover { color: #fff; border-color: rgba(255,255,255,.35); }
+.audio-clip { position: absolute; top: 3px; height: 20px; background: rgba(124,93,250,.32); border: 1px solid rgba(124,93,250,.85); border-radius: 5px; color: #e6e0ff; font-size: 11px; padding: 2px 6px; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
