@@ -2671,7 +2671,7 @@ function agoTxt(ts) {
   return new Date(ts || Date.now()).toLocaleDateString();
 }
 function trackCount(p) {
-  try { return (p.scenes || []).reduce((n, sc) => n + 1 + ((sc.objects || []).length) + 1 + ((sc.audio || []).length), 0); } catch { return 0; }
+  try { const sc = (p.scenes || [])[0]; if (!sc) return 0; return 1 + ((sc.objects || []).length) + (sc.voiceAssetId ? 1 : 0) + ((sc.audio || []).length); } catch { return 0; }
 }
 function captureThumb() {
   try {
