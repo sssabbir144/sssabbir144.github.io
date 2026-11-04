@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site-final-v2.css?v=20261029-6">
-<link rel="stylesheet" href="studio.css?v=28">
+<link rel="stylesheet" href="studio.css?v=27">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Ss Animation","url":"https://sssabbir144.github.io/studio/","applicationCategory":"MultimediaApplication","operatingSystem":"Web browser","browserRequirements":"Requires JavaScript","offers":[{"@type":"Offer","name":"Free Plan","price":"0","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 30 days","price":"200","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 6 months","price":"1000","priceCurrency":"BDT"},{"@type":"Offer","name":"Pro — 1 year","price":"2000","priceCurrency":"BDT"}]}
 </script>
@@ -204,55 +204,41 @@
       </div>
 
       <!-- Timeline -->
-      <div class="timeline" id="timelineRoot" aria-label="Timeline">
+      <div class="timeline" aria-label="Timeline">
         <div class="timeline-bar">
-          <div class="tp-group">
-            <button class="tl-btn" id="dupSceneBtn" type="button">⎘ Duplicate</button>
-            <button class="tl-btn" id="splitSceneBtn" type="button">✂ Split</button>
-            <button class="tl-btn" id="cameraBtn" type="button">📷 Camera</button>
-            <button class="tl-btn" id="voiceBtn" type="button">🎤 Voice</button>
-          </div>
-          <div class="tp-group tp-center">
+          <div class="transport">
             <button class="tl-btn" id="jumpStartBtn" type="button" title="Jump to start">⏮</button>
-            <button class="tl-btn" id="back5Btn" type="button" title="Back 5 seconds">↺ 5</button>
+            <button class="tl-btn" id="back5Btn" type="button" title="Back 5 seconds">−5s</button>
             <button class="tl-btn tl-play" id="playBtn" type="button" title="Play">▶</button>
-            <button class="tl-btn" id="fwd5Btn" type="button" title="Forward 5 seconds">↻ 5</button>
+            <button class="tl-btn" id="fwd5Btn" type="button" title="Forward 5 seconds">+5s</button>
             <span class="time-display" id="timeDisplay">00:00 / 02:00</span>
           </div>
-          <div class="tp-group tp-right">
-            <button class="tl-btn" id="handBtn" type="button" title="Hand tool — drag to pan the stage">✋</button>
-            <span class="zoom-pill"><button class="tl-btn" id="stageZoomOut" type="button" title="Zoom stage out">🔍−</button><button class="tl-btn" id="stageZoomIn" type="button" title="Zoom stage in">🔍+</button></span>
-            <button class="tl-btn" id="tlCollapseBtn" type="button" title="Collapse timeline">⌃</button>
-            <button class="tl-btn" id="undoBtn" type="button" title="Undo">↩</button>
-            <button class="tl-btn" id="redoBtn" type="button" title="Redo">↪</button>
-            <button class="tl-btn" id="stageFsBtn" type="button" title="Full screen canvas">⛶</button>
+          <div class="scene-strip" id="sceneStrip">
+            <button class="scene-chip active" type="button">Scene 1</button>
+            <button class="tl-btn" id="addSceneBtn" type="button">+ Add Scene</button>
+            <button class="tl-btn" id="dupSceneBtn" type="button">Duplicate</button>
+            <button class="tl-btn" id="splitSceneBtn" type="button">Split</button>
+            <button class="tl-btn" id="cameraBtn" type="button">Camera</button>
+            <button class="tl-btn" id="voiceBtn" type="button">Voice</button>
+            <button class="tl-btn" id="keyBtn" type="button" title="Add a keyframe for the selected object at the playhead">◆ Keyframe</button>
+            <button class="tl-btn" id="keyDelBtn" type="button" title="Delete the keyframe at the playhead">✕ Key</button>
           </div>
-        </div>
-        <div class="scene-strip" id="sceneStrip">
-          <button class="tl-btn" id="dockBtn" type="button" title="Show or hide the layers">▦</button>
-          <button class="scene-chip active" type="button">Scene 1</button>
-          <button class="tl-btn" id="addSceneBtn" type="button">+</button>
-          <div class="scene-right">
-            <span class="zoom-pill"><button class="tl-btn" id="tlZoomOut" type="button">−</button><span id="tlZoomVal">40%</span><button class="tl-btn" id="tlZoomIn" type="button">+</button></span>
-            <button class="tl-btn" id="lockAllBtn" type="button" title="Lock or unlock all layers">🔓</button>
+          <div class="timeline-tools">
+            <button class="tl-btn" id="undoBtn" type="button" title="Undo">↩ Undo</button>
+            <button class="tl-btn" id="redoBtn" type="button" title="Redo">↪ Redo</button>
+            <label class="zoom-ctl">Zoom
+              <input type="range" id="canvasZoom" min="50" max="150" value="100">
+            </label>
+            <label class="zoom-ctl">Timeline zoom
+              <input type="range" id="timelineZoom" min="10" max="100" value="40">
+            </label>
+            <button class="tl-btn" id="stageFsBtn" type="button" title="Full screen canvas">⛶ Full Screen</button>
           </div>
         </div>
         <div class="timeline-tracks" id="timelineTracks">
-          <div class="tl-head">
-            <span class="tl-layers-title">▦ LAYERS</span>
-            <div class="tl-head-tools">
-              <button class="tl-btn" id="keyBtn" type="button" title="Add a keyframe for the selected object at the playhead">◆ Keyframe</button>
-              <button class="tl-btn" id="keyDelBtn" type="button" title="Delete the keyframe at the playhead">✕ Key</button>
-              <button class="tl-btn" id="delLayerBtn" type="button" title="Delete the selected layer">🗑 Layer</button>
-            </div>
-          </div>
-          <div class="tl-scroll" id="tlScroll">
-            <div class="tl-inner" id="tlInner">
-              <div class="tl-ruler" id="tlRuler"></div>
-              <div class="playhead" id="playhead"><i class="ph-handle"></i></div>
-              <div id="trackRows"></div>
-            </div>
-          </div>
+          <div class="playhead" id="playhead"></div>
+          <div id="trackRows"></div>
+          <button class="tl-btn layers-toggle" id="layersBtn" type="button">Layers ▾</button>
         </div>
       </div>
     </div>
@@ -485,6 +471,6 @@
     </div>
   </div>
 </div>
-<script src="studio.js?v=38"></script>
+<script src="studio.js?v=37"></script>
 </body>
 </html>
