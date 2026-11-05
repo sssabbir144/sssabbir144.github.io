@@ -350,6 +350,10 @@ body.gate-open { overflow: hidden; }
 .pc-name { font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pc-meta { color: var(--muted); font-size: 13px; }
 .pc-open { margin-top: auto; width: 100%; }
+.pc-inforow { display: flex; align-items: center; gap: 8px; }
+.pc-infotext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.pc-del { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.pc-del:hover { color: #ff6b6b; border-color: rgba(255,107,107,.5); }
 @media (max-width: 980px) { .dash-layout { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { #projList { grid-template-columns: 1fr; } }
 

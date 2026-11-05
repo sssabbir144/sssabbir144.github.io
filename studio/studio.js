@@ -2720,8 +2720,10 @@ function projCardHTML(p, opts) {
     <div class="pc-body">
       <div class="pc-tags"><span class="pc-tag">EASY MODE</span>${active}</div>
       <h4 class="pc-name"></h4>
-      ${sub}
-      <p class="pc-meta">${opts.tracks} Tracks</p>
+      <div class="pc-inforow">
+        <div class="pc-infotext">${sub}<p class="pc-meta">${opts.tracks} Tracks</p></div>
+        <button class="pc-del" data-del="" type="button" title="Delete project" aria-label="Delete project"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+      </div>
       <button class="btn btn-accent pc-open" data-open="${opts.attr}" type="button">Open Project</button>
     </div>`;
 }
@@ -2744,6 +2746,7 @@ async function renderDashboard(filter) {
     card.innerHTML = projCardHTML(p, { active: (p.savedAt || 0) === dashNewestTs && dashNewestTs > 0, attr: "", tracks: trackCount(p), cloud: false });
     card.querySelector(".pc-name").textContent = p.name;
     card.querySelector("[data-open]").dataset.dashOpen = p.name;
+    card.querySelector("[data-del]").dataset.dashDel = p.name;
     return card.outerHTML;
   }).join("")
     + (f && !shown.length && all.length ? `<p class="panel-note">No projects match “${filter}”.</p>` : "");
@@ -2752,6 +2755,10 @@ async function renderDashboard(filter) {
       setView("editor");
       setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
     }
+  }));
+  $$("[data-dash-del]", listEl).forEach(b => b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await deleteProject(b.dataset.dashDel);
   }));
   $$(".pc-thumb, .pc-name", listEl).forEach(el => el.addEventListener("click", () => {
     const card = el.closest(".proj-card");
@@ -3039,6 +3046,15 @@ async function cloudDeleteProject(name) {
   if (!fb || !fb.user || !cloudOk || !name) return;
   try { const { doc, deleteDoc } = fb.fsM; if (deleteDoc) await deleteDoc(doc(fb.db, "users", fb.user.uid, "projects", encodeURIComponent(name))); } catch { /* cloud copy lingers harmlessly */ }
 }
+/* One-click project delete from a dashboard card (owner's direct order 2026-11-05 — owner's own addition, not in the master) */
+async function deleteProject(name) {
+  if (!name) return;
+  try { await idbDel("projects", name); } catch { /* list refresh below still applies */ }
+  await cloudDeleteProject(name);
+  if (savedName === name) savedName = null;
+  renderDashboard($("#projSearch") ? $("#projSearch").value : "");
+  setNote(`Project \u201C${name}\u201D deleted.`);
+}
 /* Cloud backup of the current project (Firestore users/{uid}/projects) */
 async function cloudBackupProject(force) {
   if (!fb || !fb.user || !cloudOk) return false;
@@ -3081,6 +3097,8 @@ async function appendCloudProjects(listEl, localNames, filter, seq) {
       row.innerHTML = projCardHTML({ thumb: p.thumb || null, savedAt: p.savedAt }, { active: isNewest, attr: "", tracks, cloud: true });
       row.querySelector("[data-open]").classList.add("cloud-open");
       row.querySelector(".pc-name").textContent = p.name;
+      row.querySelector("[data-del]").dataset.dashDel = p.name;
+      row.querySelector("[data-del]").addEventListener("click", async (e) => { e.stopPropagation(); await deleteProject(p.name); });
       const cThumb = row.querySelector(".pc-thumb"), cName = row.querySelector(".pc-name");
       [cThumb, cName].forEach(el => { if (el) el.addEventListener("click", () => { const b = row.querySelector(".cloud-open"); if (b) b.click(); }); });
       row.querySelector(".cloud-open").addEventListener("click", async () => {
