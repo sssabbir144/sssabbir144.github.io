@@ -170,7 +170,9 @@ input[type="color"] { background: var(--panel-2); border: 1px solid var(--line);
 
 /* ---------- Dashboard (first interface) ---------- */
 .dash-wrap { max-width: 1240px; margin: 6px auto 26px; padding: 0 16px; }
-.dash-topbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 2px 14px; }
+.dash-topbar { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 2px 14px; }
+.dash-brand { min-width: 0; }
+.dash-brand > span { min-width: 0; }
 /* QA: the dashboard's own bar (with the sign-out/power button) sticks under the fixed site nav — always reachable */
 .dash-topbar { position: sticky; top: calc(var(--nav-h) + 6px); z-index: 50; background: var(--bg); border-radius: 0 0 10px 10px; }
 .dash-brand { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 800; }
@@ -285,7 +287,7 @@ body.gate-open { overflow: hidden; }
 /* ---------- Owner's order (2026-11-03): the three top-bar pills, one size, one line, on mobile ---------- */
 @media (max-width: 700px) {
   #siteNav .nav-inner { gap: 8px; padding: 0 10px; }
-  #siteNav .brand-badge,
+  #siteNav .install-btn,
   #siteNav .nav-icons .btn {
     height: 38px; padding: 0 12px; font-size: 13px; line-height: 1; letter-spacing: 0;
     border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
@@ -293,9 +295,20 @@ body.gate-open { overflow: hidden; }
   }
   #siteNav .nav-icons { gap: 8px; }
 }
+@media (max-width: 700px) {
+  .dash-brand { font-size: 18px; gap: 8px; }
+  .dash-logo { width: 38px; height: 38px; }
+  .dash-tb-actions { gap: 6px; margin-right: 6px; }
+  .dash-tb-actions .btn { height: 36px; padding: 0 11px; font-size: 13px; }
+  .dash-power { width: 38px; height: 38px; }
+}
 @media (max-width: 380px) {
+  .dash-brand { font-size: 16.5px; gap: 7px; }
+  .dash-logo { width: 34px; height: 34px; }
+  .dash-tb-actions .btn { height: 34px; padding: 0 9px; font-size: 12px; }
+  .dash-power { width: 34px; height: 34px; }
   #siteNav .nav-inner { gap: 6px; padding: 0 8px; }
-  #siteNav .brand-badge,
+  #siteNav .install-btn,
   #siteNav .nav-icons .btn { padding: 0 9px; font-size: 12px; }
   #siteNav .nav-icons { gap: 6px; }
 }
