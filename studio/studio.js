@@ -2952,7 +2952,7 @@ function applyPlan(plan) {
   b.classList.toggle("pro", isPro());
 }
 function personalize(user) {
-  $("#dashAvatar").src = user.photoURL || "logo-badge.png?v=2";
+  $("#dashAvatar").src = user.photoURL || "logo-badge.png?v=3";
   $("#dashName").textContent = user.displayName || "Ss Animation";
   $("#dashHandle").textContent = "@" + ((user.email || "ssanimation").split("@")[0].toLowerCase().replace(/[^a-z0-9_.]/g, "") || "ssanimation");
   const pb = $("#profileBtn");
