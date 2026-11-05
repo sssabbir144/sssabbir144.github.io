@@ -2947,9 +2947,10 @@ function showGate() {
   window.scrollTo({ top: 0 });
 }
 function applyPlan(plan) {
-  userPlan = plan === "pro" ? "pro" : "free";
+  const isOwnerAcct = !!(fb && fb.user && fb.user.email === OWNER_EMAIL);
+  userPlan = isOwnerAcct ? "pro" : (plan === "pro" ? "pro" : "free");
   const b = $("#planBadge");
-  if (fb && fb.user && fb.user.email === OWNER_EMAIL) {
+  if (isOwnerAcct) {
     b.textContent = "ADMIN";
     b.classList.add("admin"); b.classList.remove("pro");
     return;
