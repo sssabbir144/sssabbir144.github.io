@@ -1483,6 +1483,32 @@ const TOOLS = [
   { id: "cinema", icon: '<svg viewBox="0 0 24 24" fill="#a259e6"><path d="M8.8 5.9c0-.9 1-1.5 1.8-1L19 11a1.15 1.15 0 0 1 0 2l-8.4 6.1c-.8.5-1.8-.1-1.8-1z"/></svg>', name: "Cinema" }
 ];
 const rail = $("#toolRail"), panel = $("#toolPanel");
+/* View system (owner's order, 2026-11-05): after login there are exactly two faces —
+   Dashboard view and Editor view; the marketing sections live only in the logged-out home view. */
+function setView(v) {
+  document.body.classList.remove("view-home", "view-dash", "view-editor");
+  document.body.classList.add("view-" + v);
+  window.scrollTo({ top: 0 });
+  if (v === "editor") requestAnimationFrame(() => { try { drawStage(); drawPlayhead(); } catch { /* stage not ready yet */ } });
+}
+/* The Eraser lives in the rail panel now: its frame node is parked inside the
+   (never shown) overlay holder whenever another tool is active. */
+const erFrame = $("#eraserOverlay .editor-frame");
+function parkEraser() { const o = $("#eraserOverlay"); if (erFrame && o && erFrame.parentElement !== o) o.appendChild(erFrame); }
+function showEraserPanel() {
+  parkEraser();
+  panel.hidden = false;
+  $$(".rail-btn").forEach(b => b.classList.toggle("active", b.dataset.tool === "eraser"));
+  panel.dataset.tool = "eraser";
+  panel.innerHTML = "";
+  erFrame.classList.add("er-in-panel");
+  panel.appendChild(erFrame);
+}
+function closeEraserPanel() {
+  parkEraser();
+  panel.hidden = true;
+  $$(".rail-btn").forEach(b => b.classList.remove("active"));
+}
 TOOLS.forEach((t, i) => {
   const b = document.createElement("button");
   b.className = "rail-btn" + (i === 0 ? " active" : "");
@@ -2152,7 +2178,8 @@ function wireFx() {
   });
 }
 function selectTool(id) {
-  if (id === "eraser") { openEraser(); return; }
+  if (id === "eraser") { showEraserPanel(); return; }
+  parkEraser();
   if (id === "cinema") { openModal("#cinemaModal"); return; }
   if (id === "studio") {
     const o = selObj();
@@ -2465,7 +2492,7 @@ $("#renderBtn").addEventListener("click", async () => {
 });
 $("#profileBtn").addEventListener("click", () => {
   renderDashboard("");
-  $("#dashboard").scrollIntoView({ behavior: "smooth" });
+  setView("dash");
 });
 $("#googleSignInBtn").addEventListener("click", () => {
   closeModal($("#profileModal"));
@@ -2543,10 +2570,11 @@ function erLoadBlob(blob) {
   img.src = url;
 }
 function openEraser(withBlob) {
-  $("#eraserOverlay").hidden = false;
+  setView("editor");
+  selectTool("eraser");
   if (withBlob) erLoadBlob(withBlob);
 }
-$("#eraserCloseBtn").addEventListener("click", () => { $("#eraserOverlay").hidden = true; });
+$("#eraserCloseBtn").addEventListener("click", () => { closeEraserPanel(); });
 $("#erOpen").addEventListener("change", (e) => {
   const f = e.target.files && e.target.files[0];
   if (f) erLoadBlob(f);
@@ -2651,9 +2679,9 @@ $("#erExportBtn").addEventListener("click", () => {
   }, "image/png");
 });
 $("#sendToStudioBtn").addEventListener("click", () => {
-  if (!er.has) { $("#eraserOverlay").hidden = true; return; }
+  if (!er.has) { closeEraserPanel(); return; }
   $("#erCanvas").toBlob(async (b) => {
-    $("#eraserOverlay").hidden = true;
+    closeEraserPanel();
     if (b) await addImageFile(new File([b], "erased-image.png", { type: "image/png" }));
     setNote("Edited image sent to the Studio canvas.");
   }, "image/png");
@@ -2721,7 +2749,7 @@ async function renderDashboard(filter) {
     + (f && !shown.length && all.length ? `<p class="panel-note">No projects match “${filter}”.</p>` : "");
   $$("[data-dash-open]", listEl).forEach(b => b.addEventListener("click", async () => {
     if (await loadProject(b.dataset.dashOpen)) {
-      $("#studioApp").scrollIntoView({ behavior: "smooth" });
+      setView("editor");
       setNote(`Project “${b.dataset.dashOpen}” opened in the studio.`);
     }
   }));
@@ -2744,9 +2772,10 @@ async function newProject() {
   $("#projectName").value = project.name;
   history = []; hIdx = -1; pushHistory();
   renderScenes(); renderTracks(); drawStage(); drawPlayhead();
-  $("#studioApp").scrollIntoView({ behavior: "smooth" });
+  setView("editor");
   setNote("New project started — it auto-saves here as you work.");
 }
+$$('a[href="#studioApp"]').forEach(a => a.addEventListener("click", (e) => { if (fb && fb.user) { e.preventDefault(); setView("editor"); } }));
 $("#payNowBtn").addEventListener("click", () => openPro());
 const gpb = $("#getProBtn"); if (gpb) gpb.addEventListener("click", () => openPro());
 const vob = $("#voiceBtn"); if (vob) vob.addEventListener("click", () => selectTool("sounds"));
@@ -2936,11 +2965,11 @@ function personalize(user) {
   if (me) me.textContent = user.email || "";
 }
 async function onUser(user) {
-  if (!user) { if (fb) fb.user = null; gateStatus(""); showGate(); return; }
+  if (!user) { if (fb) fb.user = null; setView("home"); gateStatus(""); showGate(); return; }
   fb.user = user;
   dismissGate();
   personalize(user);
-  $("#dashboard").scrollIntoView({ behavior: "smooth" });
+  setView("dash");
   try {
     const { doc, setDoc, getDoc } = fb.fsM;
     const ref = doc(fb.db, "users", user.uid);
@@ -3059,7 +3088,7 @@ async function appendCloudProjects(listEl, localNames, filter, seq) {
           const rec = JSON.parse(p.data);
           await idbPut("projects", { ...rec, savedAt: Date.now(), thumb: p.thumb || null });
           if (await loadProject(p.name)) {
-            $("#studioApp").scrollIntoView({ behavior: "smooth" });
+            setView("editor");
             setNote(`Cloud project “${p.name}” restored and opened.`);
             renderDashboard("");
           }

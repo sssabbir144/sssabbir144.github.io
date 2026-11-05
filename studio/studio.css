@@ -175,6 +175,17 @@ input[type="color"] { background: var(--panel-2); border: 1px solid var(--line);
 .dash-brand > span { min-width: 0; }
 /* QA: the dashboard's own bar (with the sign-out/power button) sticks under the fixed site nav — always reachable */
 .dash-topbar { position: sticky; top: calc(var(--nav-h) + 6px); z-index: 50; background: var(--bg); border-radius: 0 0 10px 10px; }
+/* View system (owner's order, 2026-11-05): home = landing page only; dash = dashboard only; editor = editor only */
+body.view-home #dashboard, body.view-home #studioApp { display: none; }
+body.view-dash .landing-hero, body.view-dash .feature-grid, body.view-dash #pricing, body.view-dash .footer, body.view-dash #studioApp { display: none; }
+body.view-editor #dashboard, body.view-editor .landing-hero, body.view-editor .feature-grid, body.view-editor #pricing, body.view-editor .footer { display: none; }
+body.view-editor .studio-wrap { margin-top: calc(var(--nav-h) + 14px); }
+/* Eraser inside the rail panel */
+#toolPanel .editor-frame.er-in-panel { width: 100%; border: 0; border-radius: 0; background: transparent; overflow: visible; }
+#toolPanel .editor-head { padding: 0 0 10px; }
+#toolPanel .editor-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#toolPanel .editor-canvas { min-height: 0; padding: 0; display: block; text-align: left; }
+#toolPanel .er-stage { margin: 0 auto; }
 .dash-brand { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 800; }
 .dash-logo { width: 42px; height: 42px; border-radius: 24%; border: 1px solid var(--line); background: var(--panel); }
 .hero-logo { display: block; width: 168px; height: 168px; border-radius: 36px; margin: 0 auto 22px; box-shadow: 0 18px 44px rgba(0,0,0,.45); }
