@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ss Animation — 2D Animation Studio</title>
-<meta name="description" content="Ss Animation is a free 2D cartoon animation studio in your browser. Pick a character, build a scene, add your voice and export your own cartoon video. Easy Mode and Advanced Mode, character rigging, timeline and MP4 export.">
+<meta name="description" content="Ss Animation is a free 2D cartoon animation studio in your browser. Pick a character, build a scene, add voice and export your own cartoon video.">
 <link rel="canonical" href="https://sssabbir144.github.io/studio/">
 <meta name="google-site-verification" content="ftghvKSg9s15IPOc6MQCIRsmqjI3TmHfIAfsPcLE1Yo" />
 <meta name="p:domain_verify" content="f1e42c86333ab19ba63babe4bbbe0d9c"/>
@@ -97,7 +97,7 @@
         <button class="dash-pay" id="payNowBtn" type="button"><span class="dash-pay-ico">➤</span> Pay Now</button>
       </div>
       <div class="dash-identity">
-        <h2 class="dash-name" id="dashName">Loading…</h2>
+        <div class="dash-name" id="dashName">Loading…</div>
         <p class="dash-handle"><span id="dashHandle"></span> <span class="dash-badge" id="planBadge">···</span></p>
         <p class="dash-bio">Ss Animation is a 2D cartoon animation studio. Create your own cartoon videos right in your browser — ready characters, lively scenes, your own voice, and a timeline that brings every story to life.</p>
       </div>
@@ -110,7 +110,7 @@
     <div class="dash-col">
     <div class="dash-card dash-projects-card">
       <div class="dash-proj-head">
-        <h3 class="dash-proj-title"><span class="dash-film-ico">🎞</span> Projects <span class="dash-count" id="projCount">(0)</span></h3>
+        <div class="dash-proj-title"><span class="dash-film-ico">🎞</span> Projects <span class="dash-count" id="projCount">(0)</span></div>
         <div class="dash-proj-tools">
           <input type="search" id="projSearch" placeholder="Search projects..." aria-label="Search projects">
           <button class="btn btn-accent" id="newProjBtn" type="button">+ New Project</button>
@@ -121,7 +121,7 @@
 
     <div class="dash-card dash-empty" id="projEmpty">
       <div class="dash-empty-ico">🎞</div>
-      <h4>No projects created yet</h4>
+      <div class="dash-empty-title">No projects created yet</div>
       <p>Start your creative journey by creating your first cartoon project! Everything in your timeline will auto-save here.</p>
       <button class="btn btn-accent btn-lg" id="createProjBtn" type="button">+ Create New Project</button>
     </div>
@@ -151,12 +151,12 @@
   </section>
 
   <section class="feature-grid" aria-label="Studio features">
-    <article class="feature-card"><h3>Characters &amp; Rigging</h3><p>Pick from ready-made characters or build your own and rig it for smooth movement.</p></article>
-    <article class="feature-card"><h3>Scenes &amp; Media</h3><p>Backgrounds, people, vehicles, animals and objects — or upload your own images.</p></article>
-    <article class="feature-card"><h3>Rain &amp; River Effects</h3><p>A natural effects studio: flowing rivers, rain, thunder and camera shake.</p></article>
-    <article class="feature-card"><h3>Your Own Voice</h3><p>Record with your microphone or upload audio, and place it on the timeline.</p></article>
-    <article class="feature-card"><h3>Timeline Animation</h3><p>Scenes, keyframes and layers with undo/redo — animate like a professional.</p></article>
-    <article class="feature-card"><h3>Export &amp; Share</h3><p>Export your cartoon as an MP4 video and share it anywhere.</p></article>
+    <article class="feature-card"><h2>Characters &amp; Rigging</h2><p>Pick from ready-made characters or build your own and rig it for smooth movement.</p></article>
+    <article class="feature-card"><h2>Scenes &amp; Media</h2><p>Backgrounds, people, vehicles, animals and objects — or upload your own images.</p></article>
+    <article class="feature-card"><h2>Rain &amp; River Effects</h2><p>A natural effects studio: flowing rivers, rain, thunder and camera shake.</p></article>
+    <article class="feature-card"><h2>Your Own Voice</h2><p>Record with your microphone or upload audio, and place it on the timeline.</p></article>
+    <article class="feature-card"><h2>Timeline Animation</h2><p>Scenes, keyframes and layers with undo/redo — animate like a professional.</p></article>
+    <article class="feature-card"><h2>Export &amp; Share</h2><p>Export your cartoon as an MP4 video and share it anywhere.</p></article>
   </section>
 
   <!-- ============ STUDIO APP ============ -->
@@ -258,7 +258,7 @@
       </div>
     </div>
     <p class="studio-note" id="saveNote" role="status"></p>
-    <div class="app-version" aria-hidden="true">v1.0.11</div>
+    <div class="app-version" aria-hidden="true">v1.0.12</div>
   </section>
 
   <!-- ============ PRICING ============ -->
@@ -430,7 +430,7 @@
     <input type="hidden" id="csHairStyle" value="sweep"><input type="hidden" id="csShirt" value="#e74c3c">
     <input type="hidden" id="csPants" value="#2d4a7a"><input type="hidden" id="csEyes" value="round">
     <input type="hidden" id="csMouth" value="smile"><input type="hidden" id="csExtra" value="none">
-    <input type="checkbox" id="csSkirt" hidden>
+    <input type="checkbox" id="csSkirt" aria-label="Skirt style" hidden>
   </div>
 </div>
 
