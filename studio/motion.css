@@ -1,0 +1,108 @@
+/* Ss Animation — landing motion layer (ADDITIVE ONLY).
+   Loaded after studio.css. Touches nothing inside #studioApp, the login
+   gate, any modal, or any editor overlay. Every hidden/reveal state below
+   is scoped under html.js-motion, a class that motion.js adds only after
+   it has started successfully — so with JavaScript off or failed, all
+   content stays fully visible. Only transform and opacity are animated
+   (plus the one requested box-shadow glow on pricing "Get Pro" buttons).
+   No layout, colour, font, spacing or responsive rules are changed. */
+
+/* ---------- Scroll / load reveal ---------- */
+html.js-motion [data-motion] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 650ms ease, transform 650ms ease;
+  transition-delay: var(--motion-delay, 0ms);
+  will-change: opacity, transform;
+}
+html.js-motion [data-motion="scale"] {
+  transform: translateY(14px) scale(0.97);
+}
+html.js-motion [data-motion].in-view {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  will-change: auto;
+}
+
+/* ---------- Hero logo: gentle float (about 4s loop) ---------- */
+html.js-motion .landing-hero .hero-logo[data-motion-float] {
+  animation: motion-float 4s ease-in-out infinite;
+}
+@keyframes motion-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ---------- Top banner: very slow subtle zoom (max 1.05) ----------
+   Applied to the existing cover image/video plates only; playback,
+   sizing and positioning rules from studio.css are untouched. */
+html.js-motion .dash-cover .cover-plate[data-motion-banner] {
+  animation: motion-banner-zoom 20s ease-in-out infinite alternate;
+}
+@keyframes motion-banner-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
+/* ---------- Pricing "Get Pro" buttons: subtle glow pulse ---------- */
+html.js-motion .pricing .plan-card .plan-btn.btn-accent {
+  animation: motion-glow 2.8s ease-in-out infinite;
+}
+@keyframes motion-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 197, 24, 0); }
+  50% { box-shadow: 0 0 18px 2px rgba(245, 197, 24, 0.35); }
+}
+
+/* ---------- Hover / tap lift: landing buttons and cards only ----------
+   Transform-only, so layout never shifts. Selectors are scoped to the
+   landing hero, feature grid and pricing sections — never the studio
+   app, dashboard controls, modals or the login screen. */
+html.js-motion .landing-hero .btn,
+html.js-motion .pricing .plan-card .btn {
+  transition: transform 350ms ease, box-shadow 350ms ease;
+}
+html.js-motion .landing-hero .btn:hover,
+html.js-motion .pricing .plan-card .btn:hover,
+html.js-motion .feature-grid .feature-card[data-motion]:hover,
+html.js-motion .pricing .plan-card[data-motion]:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+html.js-motion .landing-hero .btn:active,
+html.js-motion .pricing .plan-card .btn:active,
+html.js-motion .feature-grid .feature-card[data-motion]:active,
+html.js-motion .pricing .plan-card[data-motion]:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- Never run motion while the studio editor is open ---------- */
+body.view-editor [data-motion],
+body.view-editor [data-motion-float],
+body.view-editor [data-motion-banner],
+body.view-editor .pricing .plan-card .plan-btn.btn-accent {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ---------- Reduced motion: everything shown, nothing moves ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html.js-motion [data-motion],
+  html.js-motion [data-motion].in-view {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+  html.js-motion .landing-hero .hero-logo[data-motion-float],
+  html.js-motion .dash-cover .cover-plate[data-motion-banner],
+  html.js-motion .pricing .plan-card .plan-btn.btn-accent,
+  html.js-motion .landing-hero .btn,
+  html.js-motion .pricing .plan-card .btn,
+  html.js-motion .feature-grid .feature-card[data-motion],
+  html.js-motion .pricing .plan-card[data-motion] {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
